@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +13,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
-        settings.frontend_url,  # production Vercel URL
+        os.environ.get("FRONTEND_URL", "https://snapexpense.vercel.app"),
     ],
     allow_credentials=True,
     allow_methods=["*"],
