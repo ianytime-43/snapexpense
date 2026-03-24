@@ -1,0 +1,6 @@
+ALTER TABLE public.users
+ADD COLUMN IF NOT EXISTS employee_id TEXT,
+ADD COLUMN IF NOT EXISTS cost_center TEXT,
+ADD COLUMN IF NOT EXISTS default_gl_code TEXT,
+ADD COLUMN IF NOT EXISTS manager_email TEXT,
+ADD COLUMN IF NOT EXISTS enterprise_platform TEXT;

@@ -21,6 +21,7 @@ import QuarterlyEstimatePage from './pages/QuarterlyEstimatePage'
 import TaxDashboardPage from './pages/TaxDashboardPage'
 import MileagePage from './pages/MileagePage'
 import UploadPage from './pages/UploadPage'
+import EnterpriseSubmitPage from './pages/EnterpriseSubmitPage'
 import BankMatchingPage from './pages/BankMatchingPage'
 import SubscriptionsPage from './pages/SubscriptionsPage'
 
@@ -172,6 +173,16 @@ function AppRoutes({ session }: { session: Session | null }) {
         element={
           session ? (
             <SubscriptionsPage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+      <Route
+        path="/enterprise-submit"
+        element={
+          session ? (
+            <EnterpriseSubmitPage session={session} />
           ) : (
             <Navigate to="/auth" replace />
           )
