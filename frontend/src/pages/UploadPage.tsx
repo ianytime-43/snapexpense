@@ -5,6 +5,7 @@ import { uploadReceipt } from '../lib/api'
 import CameraCapture from '../components/CameraCapture'
 import ScannerMode from '../components/ScannerMode'
 import { saveToQueue } from '../hooks/useOfflineQueue'
+import type { GpsCoords } from '../lib/gps'
 
 interface Props {
   session: Session
@@ -247,6 +248,7 @@ export default function UploadPage({ session }: Props) {
   const [uploading, setUploading] = useState(false)
   const [cameraMode, setCameraMode] = useState(false)
   const [scannerMode, setScannerMode] = useState(false)
+  const [gpsCoords, setGpsCoords] = useState<GpsCoords | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -301,7 +303,7 @@ export default function UploadPage({ session }: Props) {
     if (!item) return
     updateItem(item.id, { status: 'processing' })
     try {
-      const result = await uploadReceipt(item.file, session.access_token)
+      const result = await uploadReceipt(item.file, session.access_token, gpsCoords)
       navigate(`/expenses/${result.expense_id}`)
     } catch (err: unknown) {
       if (!navigator.onLine) {
@@ -328,7 +330,7 @@ export default function UploadPage({ session }: Props) {
       pending.map(async item => {
         updateItem(item.id, { status: 'processing' })
         try {
-          const result = await uploadReceipt(item.file, session.access_token)
+          const result = await uploadReceipt(item.file, session.access_token, gpsCoords)
           updateItem(item.id, {
             status: result.duplicate ? 'duplicate' : 'done',
             expenseId: result.expense_id,
@@ -345,8 +347,9 @@ export default function UploadPage({ session }: Props) {
     setUploading(false)
   }
 
-  const handleScannerComplete = async (files: File[]) => {
+  const handleScannerComplete = async (files: File[], coords: GpsCoords | null) => {
     setScannerMode(false)
+    setGpsCoords(coords)
     if (files.length === 0) return
 
     const newItems: FileItem[] = await Promise.all(

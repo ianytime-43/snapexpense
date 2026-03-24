@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { calculateBlurScore } from '../lib/blurDetector'
 import { enhanceCanvasToFile } from '../lib/imageEnhance'
+import { getCurrentPosition, type GpsCoords } from '../lib/gps'
 
 type ScanState = 'searching' | 'detected' | 'verifying' | 'captured'
 
@@ -10,7 +11,7 @@ interface CapturedReceipt {
 }
 
 interface Props {
-  onComplete: (files: File[]) => void
+  onComplete: (files: File[], coords: GpsCoords | null) => void
   onCancel: () => void
 }
 
@@ -32,6 +33,13 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
   const [blurScore, setBlurScore] = useState(0)
   const [receipts, setReceipts] = useState<CapturedReceipt[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [gpsCoords, setGpsCoords] = useState<GpsCoords | null>(null)
+
+  // ── GPS capture (silent, non-blocking) ────────────────────────────────────
+
+  useEffect(() => {
+    getCurrentPosition().then(setGpsCoords)
+  }, [])
 
   // ── Camera setup ──────────────────────────────────────────────────────────
 
@@ -206,9 +214,9 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
     if (receipts.length === 0) {
       onCancel()
     } else {
-      onComplete(receipts.map((r) => r.file))
+      onComplete(receipts.map((r) => r.file), gpsCoords)
     }
-  }, [receipts, onComplete, onCancel])
+  }, [receipts, gpsCoords, onComplete, onCancel])
 
   // ── Guide box border color ─────────────────────────────────────────────────
 

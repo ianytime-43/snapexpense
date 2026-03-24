@@ -22,10 +22,15 @@ async function apiFetch(path: string, token: string, options: RequestInit = {}) 
 export async function uploadReceipt(
   file: File,
   token: string,
+  coords?: { lat: number; lng: number } | null,
 ): Promise<{ expense_id: string; duplicate: boolean }> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('source', 'upload')
+  if (coords) {
+    formData.append('latitude', coords.lat.toString())
+    formData.append('longitude', coords.lng.toString())
+  }
 
   const response = await fetch(`${API_BASE}/receipts/upload`, {
     method: 'POST',
