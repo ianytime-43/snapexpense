@@ -1,0 +1,47 @@
+"""Smart duplicate detection across sources (camera + email + bank feed)."""
+import logging
+from supabase import Client
+
+logger = logging.getLogger(__name__)
+
+def find_potential_duplicates(admin: Client, user_id: str, expense: dict) -> list[dict]:
+    """Find expenses that might be duplicates of the given expense.
+    Checks: same amount + similar merchant + close date (within 2 days)."""
+    amount = expense.get("amount_total")
+    date = expense.get("expense_date")
+    merchant = expense.get("merchant_name", "")
+
+    if not amount or not date:
+        return []
+
+    # Query similar expenses
+    results = (
+        admin.table("expenses")
+        .select("id, merchant_name, amount_total, expense_date, status")
+        .eq("user_id", user_id)
+        .neq("id", expense.get("id", ""))
+        .gte("expense_date", _offset_date(date, -2))
+        .lte("expense_date", _offset_date(date, 2))
+        .execute()
+    )
+
+    duplicates = []
+    for e in (results.data or []):
+        e_amount = float(e.get("amount_total") or 0)
+        if abs(e_amount - float(amount)) < 0.01:  # Same amount
+            e_merchant = (e.get("merchant_name") or "").upper()
+            if not merchant or not e_merchant or merchant.upper()[:5] == e_merchant[:5]:
+                duplicates.append({
+                    "id": e["id"],
+                    "merchant_name": e["merchant_name"],
+                    "amount_total": e_amount,
+                    "expense_date": e["expense_date"],
+                    "reason": f"Same amount (${amount}) within 2 days" + (f", similar merchant" if merchant else ""),
+                })
+
+    return duplicates
+
+def _offset_date(date_str: str, days: int) -> str:
+    from datetime import datetime, timedelta
+    d = datetime.strptime(date_str, "%Y-%m-%d")
+    return (d + timedelta(days=days)).strftime("%Y-%m-%d")
