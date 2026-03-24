@@ -6,18 +6,22 @@ import {
   disconnectCalendar,
   disconnectIntegration,
   disconnectOutlook,
+  downloadTaxPackage,
   exportMyData,
+  getAccountantAccessList,
   getCalendarAuthUrl,
   getCalendarStatus,
   getIntegrationConnections,
   getMe,
   getOutlookAuthUrl,
   getOutlookStatus,
+  inviteAccountant,
+  revokeAccountant,
   scanGmail,
   scanOutlook,
   updateMe,
 } from '../lib/api'
-import type { IntegrationConnection } from '../lib/api'
+import type { AccountantAccess, IntegrationConnection } from '../lib/api'
 import { useDarkMode } from '../hooks/useDarkMode'
 import type { EmailScanResult, UserProfile } from '../types'
 
@@ -55,6 +59,13 @@ export default function SettingsPage({ session }: Props) {
   const [integrationConnections, setIntegrationConnections] = useState<IntegrationConnection[]>([])
   const [integrationsLoading, setIntegrationsLoading] = useState(true)
   const [integrationsWorking, setIntegrationsWorking] = useState<string | null>(null)
+  const [accountantList, setAccountantList] = useState<AccountantAccess[]>([])
+  const [accountantEmail, setAccountantEmail] = useState('')
+  const [accountantLoading, setAccountantLoading] = useState(true)
+  const [accountantWorking, setAccountantWorking] = useState(false)
+  const [accountantError, setAccountantError] = useState<string | null>(null)
+  const [taxPackageYear, setTaxPackageYear] = useState(new Date().getFullYear() - 1)
+  const [taxPackageWorking, setTaxPackageWorking] = useState(false)
   const { theme, setTheme } = useDarkMode()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -68,6 +79,13 @@ export default function SettingsPage({ session }: Props) {
       .then(setIntegrationConnections)
       .catch(() => {})
       .finally(() => setIntegrationsLoading(false))
+  }, [session])
+
+  useEffect(() => {
+    getAccountantAccessList(session.access_token)
+      .then(setAccountantList)
+      .catch(() => {})
+      .finally(() => setAccountantLoading(false))
   }, [session])
 
   useEffect(() => {
@@ -227,6 +245,54 @@ export default function SettingsPage({ session }: Props) {
       document.body.removeChild(el)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleAccountantInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!accountantEmail.trim()) return
+    setAccountantWorking(true)
+    setAccountantError(null)
+    try {
+      const row = await inviteAccountant(session.access_token, accountantEmail.trim())
+      setAccountantList((prev) => {
+        const filtered = prev.filter((a) => a.accountant_email !== row.accountant_email)
+        return [row, ...filtered]
+      })
+      setAccountantEmail('')
+    } catch (err) {
+      setAccountantError(err instanceof Error ? err.message : 'Invite failed')
+    } finally {
+      setAccountantWorking(false)
+    }
+  }
+
+  const handleAccountantRevoke = async (email: string) => {
+    if (!confirm(`Revoke access for ${email}?`)) return
+    try {
+      await revokeAccountant(session.access_token, email)
+      setAccountantList((prev) => prev.filter((a) => a.accountant_email !== email))
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleTaxPackageDownload = async () => {
+    setTaxPackageWorking(true)
+    try {
+      const blob = await downloadTaxPackage(session.access_token, taxPackageYear)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `tax_package_${taxPackageYear}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Download failed. Please try again.')
+    } finally {
+      setTaxPackageWorking(false)
     }
   }
 
@@ -708,6 +774,91 @@ export default function SettingsPage({ session }: Props) {
                 {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System'}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Share with Accountant card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Share with Accountant
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Invite your accountant by email. They get a read-only link to all your business expenses, receipts, and tax data — no account needed.
+          </p>
+
+          <form onSubmit={handleAccountantInvite} className="flex gap-2 mb-4">
+            <input
+              type="email"
+              value={accountantEmail}
+              onChange={(e) => setAccountantEmail(e.target.value)}
+              placeholder="accountant@example.com"
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="submit"
+              disabled={accountantWorking || !accountantEmail.trim()}
+              className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {accountantWorking ? 'Inviting…' : 'Invite'}
+            </button>
+          </form>
+
+          {accountantError && (
+            <p className="text-sm text-red-600 mb-3">{accountantError}</p>
+          )}
+
+          {accountantLoading ? (
+            <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse" />
+          ) : accountantList.length > 0 ? (
+            <div className="space-y-2">
+              {accountantList.map((a) => (
+                <div key={a.accountant_email} className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.accountant_email}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Granted {new Date(a.granted_at).toLocaleDateString()}
+                      {a.last_accessed_at ? ` · Last viewed ${new Date(a.last_accessed_at).toLocaleDateString()}` : ' · Not yet viewed'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAccountantRevoke(a.accountant_email)}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 dark:text-gray-500">No accountants have access yet.</p>
+          )}
+        </div>
+
+        {/* Annual Tax Package card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Annual Tax Package
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Download a ZIP with all your business expenses and a tax summary grouped by T2125 / Schedule C line — ready to hand to your accountant.
+          </p>
+          <div className="flex gap-2">
+            <select
+              value={taxPackageYear}
+              onChange={(e) => setTaxPackageYear(Number(e.target.value))}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 - i).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleTaxPackageDownload}
+              disabled={taxPackageWorking}
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {taxPackageWorking ? 'Generating…' : `Download ${taxPackageYear} Tax Package`}
+            </button>
           </div>
         </div>
 
