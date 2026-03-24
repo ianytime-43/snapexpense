@@ -21,6 +21,7 @@ import QuarterlyEstimatePage from './pages/QuarterlyEstimatePage'
 import TaxDashboardPage from './pages/TaxDashboardPage'
 import MileagePage from './pages/MileagePage'
 import UploadPage from './pages/UploadPage'
+import BankMatchingPage from './pages/BankMatchingPage'
 
 function Spinner() {
   return (
@@ -150,6 +151,16 @@ function AppRoutes({ session }: { session: Session | null }) {
         element={
           session ? (
             <SubmitSessionPage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+      <Route
+        path="/bank"
+        element={
+          session ? (
+            <BankMatchingPage session={session} />
           ) : (
             <Navigate to="/auth" replace />
           )

@@ -345,6 +345,167 @@ export async function disconnectIntegration(token: string, platform: string): Pr
   await apiFetch(`/integrations/disconnect/${platform}`, token, { method: 'DELETE' })
 }
 
+// ── Bank Transactions ─────────────────────────────────────────────────────────
+
+export interface BankTransactionIn {
+  external_id?: string
+  amount: number
+  currency?: string
+  merchant_name?: string
+  transaction_date?: string
+  account_name?: string
+}
+
+export interface BankTransaction {
+  id: string
+  external_id?: string
+  amount: number
+  currency: string
+  merchant_name?: string
+  transaction_date?: string
+  account_name?: string
+  matched_expense_id?: string
+  match_confidence?: number
+  created_at: string
+  expenses?: {
+    id: string
+    merchant_name?: string
+    amount_total?: number
+    expense_date?: string
+    status?: string
+  } | null
+}
+
+export interface BankCoverage {
+  total_transactions: number
+  matched: number
+  unmatched_transactions: number
+  extra_receipts: number
+  coverage_pct: number
+}
+
+export async function importBankTransactions(
+  transactions: BankTransactionIn[],
+  token: string,
+): Promise<{ imported: number; auto_matched: number }> {
+  return apiFetch('/bank/import', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transactions }),
+  })
+}
+
+export async function importBankCsv(
+  file: File,
+  token: string,
+): Promise<{ imported: number; auto_matched: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${API_BASE}/bank/import-csv`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Import failed' }))
+    throw new Error(err.detail || `HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function getBankTransactions(
+  token: string,
+  unmatchedOnly = false,
+): Promise<BankTransaction[]> {
+  return apiFetch(`/bank/transactions${unmatchedOnly ? '?unmatched_only=true' : ''}`, token)
+}
+
+export async function manualMatchTransaction(
+  transactionId: string,
+  expenseId: string,
+  token: string,
+): Promise<BankTransaction> {
+  return apiFetch('/bank/match', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transaction_id: transactionId, expense_id: expenseId }),
+  })
+}
+
+export async function unmatchTransaction(transactionId: string, token: string): Promise<void> {
+  return apiFetch(`/bank/unmatch/${transactionId}`, token, { method: 'POST' })
+}
+
+export async function getBankCoverage(token: string): Promise<BankCoverage> {
+  return apiFetch('/bank/coverage', token)
+}
+
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+
+export interface DetectedSubscription {
+  merchant_name: string
+  amount: number
+  currency: string
+  frequency: 'monthly' | 'annual' | 'weekly'
+  expense_tag: string
+  last_seen_date: string
+  next_expected_date: string
+  times_seen: number
+  price_change: number | null
+}
+
+export interface SavedSubscription {
+  id: string
+  user_id: string
+  merchant_name: string
+  amount: number | null
+  currency: string
+  frequency: string
+  expense_tag: string
+  last_seen_date: string | null
+  next_expected_date: string | null
+  previous_amount: number | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function detectSubscriptions(
+  token: string,
+): Promise<{ subscriptions: DetectedSubscription[]; count: number }> {
+  return apiFetch('/subscriptions/detect', token)
+}
+
+export async function listSubscriptions(
+  token: string,
+): Promise<{ subscriptions: SavedSubscription[] }> {
+  return apiFetch('/subscriptions', token)
+}
+
+export async function saveSubscription(
+  token: string,
+  data: Omit<DetectedSubscription, 'times_seen'>,
+): Promise<SavedSubscription> {
+  return apiFetch('/subscriptions', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      merchant_name: data.merchant_name,
+      amount: data.amount,
+      currency: data.currency,
+      frequency: data.frequency,
+      expense_tag: data.expense_tag,
+      last_seen_date: data.last_seen_date,
+      next_expected_date: data.next_expected_date,
+      previous_amount: data.price_change != null ? data.amount - data.price_change : null,
+    }),
+  })
+}
+
+export async function deleteSubscription(token: string, id: string): Promise<void> {
+  return apiFetch(`/subscriptions/${id}`, token, { method: 'DELETE' })
+}
+
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
   const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
     method: 'POST',
@@ -360,4 +521,100 @@ export async function scanOutlook(token: string, months: number): Promise<EmailS
   }
   const data = await res.json()
   return data.results
+}
+
+// ── Accountant Access ─────────────────────────────────────────────────────────
+
+export interface AccountantAccess {
+  accountant_email: string
+  access_token: string
+  granted_at: string
+  last_accessed_at: string | null
+}
+
+export async function inviteAccountant(token: string, accountant_email: string): Promise<AccountantAccess> {
+  return apiFetch('/accountant/invite', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountant_email }),
+  })
+}
+
+export async function revokeAccountant(token: string, email: string): Promise<void> {
+  return apiFetch(`/accountant/revoke/${encodeURIComponent(email)}`, token, { method: 'DELETE' })
+}
+
+export async function getAccountantAccessList(token: string): Promise<AccountantAccess[]> {
+  return apiFetch('/accountant/access-list', token)
+}
+
+export async function downloadTaxPackage(token: string, year: number): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/accountant/tax-package/${year}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.blob()
+}
+
+// ── Enterprise ────────────────────────────────────────────────────────────────
+
+export interface EnterpriseProfile {
+  employee_id: string | null
+  cost_center: string | null
+  default_gl_code: string | null
+  manager_email: string | null
+  enterprise_platform: string | null
+}
+
+export interface ComplianceCheck {
+  profile_checks: Record<string, boolean>
+  profile_ready: boolean
+  expense_checks: Array<{
+    id: string
+    merchant_name: string | null
+    amount_total: number | null
+    issues: string[]
+    ready: boolean
+  }>
+  all_expenses_ready: boolean
+  ready_to_submit: boolean
+  not_found_ids: string[]
+}
+
+export async function getEnterpriseProfile(token: string): Promise<EnterpriseProfile> {
+  return apiFetch('/enterprise/profile', token)
+}
+
+export async function updateEnterpriseProfile(
+  data: Partial<EnterpriseProfile>,
+  token: string,
+): Promise<EnterpriseProfile> {
+  return apiFetch('/enterprise/profile', token, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function validateEnterpriseExpenses(
+  expenseIds: string[],
+  token: string,
+): Promise<ComplianceCheck> {
+  return apiFetch('/enterprise/validate', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expense_ids: expenseIds }),
+  })
+}
+
+export async function formatEnterpriseExpenses(
+  expenseIds: string[],
+  platform: string,
+  token: string,
+): Promise<{ platform: string; formatted_expenses: unknown[]; expense_count: number }> {
+  return apiFetch('/enterprise/format', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expense_ids: expenseIds, platform }),
+  })
 }
