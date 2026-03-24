@@ -111,3 +111,10 @@ export interface LineItem {
   total_price: number | null
   sort_order: number
 }
+
+export interface EmailScanResult {
+  email_id: string
+  subject: string
+  sender: string
+  date: string
+}

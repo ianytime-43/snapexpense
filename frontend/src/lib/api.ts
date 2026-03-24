@@ -1,4 +1,4 @@
-import type { ExpenseGroup, UserProfile } from '../types'
+import type { EmailScanResult, ExpenseGroup, UserProfile } from '../types'
 
 // In dev, VITE_API_URL is unset and Vite proxies /api → localhost:8000.
 // In production, set VITE_API_URL=https://your-app.railway.app
@@ -174,4 +174,38 @@ export async function updateMe(data: Record<string, unknown>, token: string): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+}
+
+export async function scanGmail(token: string, months: number): Promise<EmailScanResult[]> {
+  const res = await fetch(`${API_BASE}/gmail/scan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ months }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Scan failed' }))
+    throw new Error(err.detail || `HTTP ${res.status}`)
+  }
+  const data = await res.json()
+  return data.results
+}
+
+export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
+  const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ months }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Scan failed' }))
+    throw new Error(err.detail || `HTTP ${res.status}`)
+  }
+  const data = await res.json()
+  return data.results
 }

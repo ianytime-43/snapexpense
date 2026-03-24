@@ -9,9 +9,11 @@ import {
   getMe,
   getOutlookAuthUrl,
   getOutlookStatus,
+  scanGmail,
+  scanOutlook,
   updateMe,
 } from '../lib/api'
-import type { UserProfile } from '../types'
+import type { EmailScanResult, UserProfile } from '../types'
 
 interface Props {
   session: Session
@@ -39,6 +41,11 @@ export default function SettingsPage({ session }: Props) {
   const [outlookWorking, setOutlookWorking] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [reminderSaving, setReminderSaving] = useState(false)
+  const [scanResults, setScanResults] = useState<EmailScanResult[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [scanSource, setScanSource] = useState<'gmail' | 'outlook' | null>(null)
+  const [showForwarding, setShowForwarding] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -161,6 +168,32 @@ export default function SettingsPage({ session }: Props) {
     }
   }
 
+  const handleEmailScan = async (source: 'gmail' | 'outlook', months: number) => {
+    if (!confirm(
+      'SnapExpense will search your inbox for:\n\n' +
+      '✓ Receipts from known vendors (Uber, Lyft, airlines, hotels, etc.)\n' +
+      '✓ Emails with subjects containing "invoice", "receipt", "payment confirmation", etc.\n\n' +
+      'We will NOT read any other emails. Only email subject and sender are accessed.\n\n' +
+      'Continue?'
+    )) return
+
+    setScanning(true)
+    setScanError(null)
+    setScanSource(source)
+    setScanResults([])
+
+    try {
+      const results = source === 'gmail'
+        ? await scanGmail(session.access_token, months)
+        : await scanOutlook(session.access_token, months)
+      setScanResults(results)
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Scan failed')
+    } finally {
+      setScanning(false)
+    }
+  }
+
   const handleCopy = async () => {
     if (!address) return
     try {
@@ -278,35 +311,133 @@ export default function SettingsPage({ session }: Props) {
           )}
         </div>
 
-        {/* Forwarding address card */}
+        {/* Email Scanning card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-1">
-            Email Forwarding
+            Scan Email for Receipts & Invoices
           </h2>
           <p className="text-sm text-gray-500 mb-4">
-            Forward receipts from Uber, hotels, airlines, and more to this
-            address. SnapExpense will automatically parse and save them.
+            Search your inbox for receipts and invoices. We only look at email subjects
+            and senders — we never read your personal emails.
           </p>
 
-          {loading ? (
-            <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
-          ) : error ? (
-            <p className="text-sm text-red-600">{error}</p>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-800 select-all overflow-x-auto">
-                {address}
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 space-y-2">
+              <p className="text-xs text-gray-400 font-medium">Gmail</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEmailScan('gmail', 3)}
+                  disabled={scanning}
+                  className="flex-1 bg-green-600 text-white rounded-lg py-2 text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  Last 3 months
+                </button>
+                <button
+                  onClick={() => handleEmailScan('gmail', 6)}
+                  disabled={scanning}
+                  className="flex-1 bg-green-600 text-white rounded-lg py-2 text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  Last 6 months
+                </button>
               </div>
-              <button
-                onClick={handleCopy}
-                className={`shrink-0 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  copied
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-xs text-gray-400 font-medium">Outlook</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEmailScan('outlook', 3)}
+                  disabled={scanning}
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Last 3 months
+                </button>
+                <button
+                  onClick={() => handleEmailScan('outlook', 6)}
+                  disabled={scanning}
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Last 6 months
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {scanning && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600" />
+              Scanning {scanSource === 'gmail' ? 'Gmail' : 'Outlook'}...
+            </div>
+          )}
+
+          {scanError && (
+            <p className="text-sm text-red-600">{scanError}</p>
+          )}
+
+          {scanResults.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Found {scanResults.length} receipt/invoice emails
+              </p>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {scanResults.map((r) => (
+                  <div key={r.email_id} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg text-sm">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{r.subject}</p>
+                      <p className="text-xs text-gray-400 truncate">{r.sender}</p>
+                    </div>
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {r.date ? new Date(r.date).toLocaleDateString() : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                Forward these emails to your SnapExpense address below to import them.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Collapsible forwarding fallback */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <button
+            onClick={() => setShowForwarding(!showForwarding)}
+            className="flex items-center justify-between w-full"
+          >
+            <h2 className="text-base font-semibold text-gray-900">
+              Alternative: Email Forwarding
+            </h2>
+            <svg className={`w-5 h-5 text-gray-400 transition-transform ${showForwarding ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showForwarding && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-500 mb-4">
+                Forward receipts from Uber, hotels, airlines, and more to this
+                address. SnapExpense will automatically parse and save them.
+              </p>
+              {loading ? (
+                <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+              ) : error ? (
+                <p className="text-sm text-red-600">{error}</p>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-800 select-all overflow-x-auto">
+                    {address}
+                  </div>
+                  <button
+                    onClick={handleCopy}
+                    className={`shrink-0 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      copied
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
