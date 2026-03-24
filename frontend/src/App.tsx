@@ -12,10 +12,12 @@ import ExpensePage from './pages/ExpensePage'
 import LandingPage from './pages/LandingPage'
 import OnboardingPage from './pages/OnboardingPage'
 import PrivacyPage from './pages/PrivacyPage'
+import HomeOfficePage from './pages/HomeOfficePage'
 import InsightsPage from './pages/InsightsPage'
 import SettingsPage from './pages/SettingsPage'
 import SubmitSessionPage from './pages/SubmitSessionPage'
 import TermsPage from './pages/TermsPage'
+import QuarterlyEstimatePage from './pages/QuarterlyEstimatePage'
 import UploadPage from './pages/UploadPage'
 
 function Spinner() {
@@ -90,6 +92,26 @@ function AppRoutes({ session }: { session: Session | null }) {
       <Route
         path="/insights"
         element={session ? <InsightsPage session={session} /> : <Navigate to="/auth" replace />}
+      />
+      <Route
+        path="/home-office"
+        element={
+          session ? (
+            <HomeOfficePage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+      <Route
+        path="/quarterly-estimate"
+        element={
+          session ? (
+            <QuarterlyEstimatePage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
       />
       <Route
         path="/settings"
