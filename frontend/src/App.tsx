@@ -103,6 +103,7 @@ function AppRoutes({ session }: { session: Session | null }) {
           )
         }
       />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
 }

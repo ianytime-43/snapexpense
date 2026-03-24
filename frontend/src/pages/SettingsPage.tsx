@@ -47,7 +47,7 @@ export default function SettingsPage({ session }: Props) {
   }, [session])
 
   useEffect(() => {
-    fetch('/api/settings/forwarding-address', {
+    fetch(`${import.meta.env.VITE_API_URL}/api/settings/forwarding-address`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
       .then((r) => {
