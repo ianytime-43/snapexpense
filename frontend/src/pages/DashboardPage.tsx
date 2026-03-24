@@ -1,8 +1,11 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import BulkActions from '../components/BulkActions'
 import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
-import { getExpenses, getGroups } from '../lib/api'
+import SwipeableCard from '../components/SwipeableCard'
+import UndoToast from '../components/UndoToast'
+import { confirmExpense, getExpenses, getGroups } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import type { Expense, ExpenseGroup } from '../types'
 
@@ -106,6 +109,10 @@ export default function DashboardPage({ session }: Props) {
   const [groupByTrip, setGroupByTrip] = useState(false)
   const [tripGroups, setTripGroups] = useState<ExpenseGroup[]>([])
   const [jurisdictionFilter, setJurisdictionFilter] = useState<string | null>(null)
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [undoAction, setUndoAction] = useState<{ message: string; undo: () => void } | null>(null)
+  const [bulkProcessing, setBulkProcessing] = useState(false)
   const navigate = useNavigate()
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -166,6 +173,57 @@ export default function DashboardPage({ session }: Props) {
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleSwipeConfirm = async (expense: Expense) => {
+    try {
+      await confirmExpense(expense.id, session.access_token)
+      setExpenses(prev => prev.map(e => e.id === expense.id ? { ...e, status: 'confirmed' } : e))
+      if (navigator.vibrate) navigator.vibrate(50)
+    } catch { /* ignore */ }
+  }
+
+  const handleSwipeDelete = (expense: Expense) => {
+    const original = expenses
+    setExpenses(prev => prev.filter(e => e.id !== expense.id))
+    setUndoAction({
+      message: `Deleted ${expense.merchant_name || 'expense'}`,
+      undo: () => setExpenses(original),
+    })
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkConfirm = async () => {
+    setBulkProcessing(true)
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id => confirmExpense(id, session.access_token))
+      )
+      setExpenses(prev => prev.map(e => selectedIds.has(e.id) ? { ...e, status: 'confirmed' } : e))
+      setBulkMode(false)
+      setSelectedIds(new Set())
+    } catch { /* ignore */ }
+    finally { setBulkProcessing(false) }
+  }
+
+  const handleBulkDelete = () => {
+    if (!confirm(`Delete ${selectedIds.size} expenses?`)) return
+    const original = expenses
+    setExpenses(prev => prev.filter(e => !selectedIds.has(e.id)))
+    setUndoAction({
+      message: `Deleted ${selectedIds.size} expenses`,
+      undo: () => setExpenses(original),
+    })
+    setBulkMode(false)
+    setSelectedIds(new Set())
   }
 
   // Stats
@@ -287,6 +345,17 @@ export default function DashboardPage({ session }: Props) {
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </button>
+
+            {/* Bulk select toggle */}
+            <button
+              onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()) }}
+              className={`p-2 rounded-lg transition-colors ${bulkMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
+              aria-label="Bulk select"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
             </button>
 
@@ -466,7 +535,25 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {groupExpenses.map(expense => (
-                          <ExpenseCard key={expense.id} expense={expense} />
+                          <div key={expense.id} className="flex items-center gap-2">
+                            {bulkMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(expense.id)}
+                                onChange={() => toggleSelect(expense.id)}
+                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <SwipeableCard
+                                onSwipeRight={expense.status === 'draft' ? () => handleSwipeConfirm(expense) : undefined}
+                                onSwipeLeft={() => handleSwipeDelete(expense)}
+                                disabled={bulkMode}
+                              >
+                                <ExpenseCard expense={expense} />
+                              </SwipeableCard>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -485,7 +572,25 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {ungrouped.map(expense => (
-                          <ExpenseCard key={expense.id} expense={expense} />
+                          <div key={expense.id} className="flex items-center gap-2">
+                            {bulkMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(expense.id)}
+                                onChange={() => toggleSelect(expense.id)}
+                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <SwipeableCard
+                                onSwipeRight={expense.status === 'draft' ? () => handleSwipeConfirm(expense) : undefined}
+                                onSwipeLeft={() => handleSwipeDelete(expense)}
+                                disabled={bulkMode}
+                              >
+                                <ExpenseCard expense={expense} />
+                              </SwipeableCard>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -509,7 +614,25 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {items.map((expense) => (
-                          <ExpenseCard key={expense.id} expense={expense} />
+                          <div key={expense.id} className="flex items-center gap-2">
+                            {bulkMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(expense.id)}
+                                onChange={() => toggleSelect(expense.id)}
+                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <SwipeableCard
+                                onSwipeRight={expense.status === 'draft' ? () => handleSwipeConfirm(expense) : undefined}
+                                onSwipeLeft={() => handleSwipeDelete(expense)}
+                                disabled={bulkMode}
+                              >
+                                <ExpenseCard expense={expense} />
+                              </SwipeableCard>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -520,6 +643,24 @@ export default function DashboardPage({ session }: Props) {
           </div>
         )}
       </main>
+
+      {bulkMode && (
+        <BulkActions
+          selectedCount={selectedIds.size}
+          onConfirmAll={handleBulkConfirm}
+          onDeleteAll={handleBulkDelete}
+          onCancel={() => { setBulkMode(false); setSelectedIds(new Set()) }}
+          processing={bulkProcessing}
+        />
+      )}
+
+      {undoAction && (
+        <UndoToast
+          message={undoAction.message}
+          onUndo={() => { undoAction.undo(); setUndoAction(null) }}
+          onExpire={() => setUndoAction(null)}
+        />
+      )}
     </div>
   )
 }
