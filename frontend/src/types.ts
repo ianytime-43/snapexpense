@@ -22,10 +22,14 @@ export interface Expense {
   calendar_suggested_client: string | null
   calendar_suggested_purpose: string | null
   notes: string | null
+  expense_tag?: 'business' | 'work' | 'personal' | null
   report_id: string | null
   group_id: string | null
   location_name: string | null
   location_jurisdiction: string | null
+  document_type?: 'receipt' | 'invoice' | 'subscription' | 'payment_confirmation' | null
+  alcohol_total?: number | null
+  due_date?: string | null
   converted_amount: number | null
   conversion_rate: number | null
   converted_currency: string | null
@@ -59,6 +63,16 @@ export interface UserProfile {
   reminder_frequency: 'weekly' | 'never'
   expense_workflow: 'corporate_system' | 'hr_managed' | 'document' | 'self_employed' | null
   onboarding_complete: boolean
+  expense_categories?: string[]
+  work_hours_start?: string
+  work_hours_end?: string
+  work_days?: number[]
+  country?: string
+  region?: string
+  locale?: string
+  notification_push?: boolean
+  notification_email?: boolean
+  notification_sms?: boolean
   created_at: string
   updated_at: string
 }
