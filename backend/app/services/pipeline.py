@@ -266,6 +266,24 @@ def process_receipt_bytes(
     if tax_rate_applied is not None:
         expense_data["tax_rate_applied"] = tax_rate_applied
 
+    # Tax deduction calculation
+    try:
+        from app.modules.tax.engine import calculate_expense_tax
+
+        # Get user's country/region
+        user_row = admin.table("users").select("country, region").eq("id", user_id).maybe_single().execute()
+        user_country = (user_row.data or {}).get("country", "CA")
+        user_region = (user_row.data or {}).get("region")
+
+        tax_result = calculate_expense_tax(admin, expense_data, user_country, user_region)
+        expense_data["tax_deductible_amount"] = tax_result["tax_deductible_amount"]
+        expense_data["itc_claimable"] = tax_result["itc_claimable"]
+        expense_data["deduction_pct"] = tax_result["deduction_pct"]
+        expense_data["tax_line"] = tax_result["tax_line"]
+        expense_data["deduction_rule"] = tax_result["deduction_rule"]
+    except Exception as e:
+        logger.warning(f"Tax deduction calculation failed: {e}")
+
     expense_result = admin.table("expenses").insert(expense_data).execute()
     expense_id: str = expense_result.data[0]["id"]
 
