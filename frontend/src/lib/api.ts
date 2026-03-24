@@ -65,6 +65,19 @@ export async function updateExpense(
   })
 }
 
+export async function splitExpense(
+  id: string,
+  businessPercentage: number,
+  businessTag: string,
+  token: string,
+) {
+  return apiFetch(`/expenses/${id}/split`, token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ business_percentage: businessPercentage, business_tag: businessTag }),
+  })
+}
+
 export async function confirmExpense(id: string, token: string) {
   return updateExpense(id, { status: 'confirmed' }, token)
 }
@@ -209,6 +222,32 @@ export async function deleteMyAccount(token: string): Promise<void> {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
+// ── Insights ─────────────────────────────────────────────────────────────────
+
+export async function getSpendingTrends(token: string, months = 6) {
+  const res = await fetch(`${API_BASE}/insights/trends?months=${months}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+export async function getTopVendors(token: string, months = 3) {
+  const res = await fetch(`${API_BASE}/insights/top-vendors?months=${months}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+export async function getAnomalies(token: string) {
+  const res = await fetch(`${API_BASE}/insights/anomalies`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
 }
 
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
