@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { useDarkMode } from './hooks/useDarkMode'
 import { ToastProvider, useOnlineToast } from './hooks/useToast'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
@@ -26,6 +27,7 @@ function Spinner() {
 // Inner component that can use hooks requiring context
 function AppRoutes({ session }: { session: Session | null }) {
   useOnlineToast()
+  useDarkMode()
 
   return (
     <Routes>

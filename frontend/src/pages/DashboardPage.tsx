@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
 import { getExpenses, getGroups } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import type { Expense, ExpenseGroup } from '../types'
@@ -41,12 +42,12 @@ function ExpenseCard({ expense }: { expense: Expense }) {
   return (
     <Link
       to={`/expenses/${expense.id}`}
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-green-300 hover:shadow-sm transition-all"
+      className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-green-300 hover:shadow-sm transition-all"
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-medium text-gray-900 truncate">
+            <p className="font-medium text-gray-900 dark:text-white truncate">
               {expense.merchant_name ?? 'Unknown merchant'}
             </p>
             <span
@@ -55,7 +56,7 @@ function ExpenseCard({ expense }: { expense: Expense }) {
               {STATUS_LABELS[expense.status] ?? expense.status}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-400 flex-wrap">
+          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-400 dark:text-gray-500 flex-wrap">
             <span>
               {expense.expense_date ??
                 new Date(expense.created_at).toLocaleDateString('en-CA')}
@@ -75,7 +76,7 @@ function ExpenseCard({ expense }: { expense: Expense }) {
             {expense.location_jurisdiction && (
               <>
                 <span>·</span>
-                <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">
                   {expense.location_jurisdiction}
                 </span>
               </>
@@ -83,12 +84,12 @@ function ExpenseCard({ expense }: { expense: Expense }) {
           </div>
         </div>
         <div className="text-right shrink-0">
-          <p className="font-semibold text-gray-900">
+          <p className="font-semibold text-gray-900 dark:text-white">
             {expense.amount_total != null
               ? formatCAD(expense.amount_total, expense.currency)
               : '—'}
           </p>
-          <p className="text-xs text-gray-400">{expense.currency}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{expense.currency}</p>
         </div>
       </div>
     </Link>
@@ -204,10 +205,10 @@ export default function DashboardPage({ session }: Props) {
   })).filter((g) => g.items.length > 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">SnapExpense</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">SnapExpense</h1>
 
           <div className="flex items-center gap-2">
             <button
@@ -315,31 +316,31 @@ export default function DashboardPage({ session }: Props) {
         {/* Stats bar */}
         {!loading && expenses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-3">
-              <p className="text-xs text-gray-400 mb-1">This Month</p>
-              <p className="font-semibold text-gray-900 text-sm truncate">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">This Month</p>
+              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(thisMonthTotal)}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
                 {thisMonth.length} expense{thisMonth.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <div className="bg-white rounded-xl border border-yellow-200 p-3">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-yellow-200 dark:border-yellow-900 p-3">
               <p className="text-xs text-yellow-600 mb-1">Pending</p>
-              <p className="font-semibold text-gray-900 text-sm truncate">
+              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(pendingTotal)}
               </p>
-              <p className="text-xs text-gray-400">{pending.length} to review</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{pending.length} to review</p>
             </div>
             <button
               onClick={() => confirmed.length > 0 && navigate('/submit-session')}
-              className={`bg-white rounded-xl border border-green-200 p-3 text-left w-full transition-colors ${confirmed.length > 0 ? 'hover:bg-green-50 cursor-pointer' : 'cursor-default'}`}
+              className={`bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-900 p-3 text-left w-full transition-colors ${confirmed.length > 0 ? 'hover:bg-green-50 dark:hover:bg-green-950 cursor-pointer' : 'cursor-default'}`}
             >
               <p className="text-xs text-green-600 mb-1">Confirmed</p>
-              <p className="font-semibold text-gray-900 text-sm truncate">
+              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(confirmedTotal)}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
                 {confirmed.length > 0
                   ? `${confirmed.length} ready to submit →`
                   : '0 expenses'}
@@ -349,8 +350,11 @@ export default function DashboardPage({ session }: Props) {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+          <div className="space-y-6">
+            <SkeletonStats />
+            <div className="space-y-2">
+              {[1,2,3,4,5].map(i => <SkeletonCard key={i} />)}
+            </div>
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -361,8 +365,8 @@ export default function DashboardPage({ session }: Props) {
           <div className="py-8">
             <div className="text-center mb-8">
               <div className="text-5xl mb-3">📸</div>
-              <p className="font-semibold text-gray-800 text-lg">Welcome to SnapExpense</p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="font-semibold text-gray-800 dark:text-white text-lg">Welcome to SnapExpense</p>
+              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
                 Capture and track your business expenses in seconds
               </p>
             </div>
@@ -392,14 +396,14 @@ export default function DashboardPage({ session }: Props) {
               ].map(({ step, title, desc, action, cta }) => (
                 <div
                   key={step}
-                  className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-4"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-start gap-4"
                 >
                   <span className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-sm font-bold shrink-0">
                     {step}
                   </span>
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900 text-sm">{title}</p>
-                    <p className="text-gray-400 text-xs mt-0.5">{desc}</p>
+                    <p className="font-medium text-gray-900 dark:text-white text-sm">{title}</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-0.5">{desc}</p>
                   </div>
                   {action && cta && (
                     <button
@@ -418,10 +422,10 @@ export default function DashboardPage({ session }: Props) {
             {/* Jurisdiction filter */}
             {availableJurisdictions.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-400">Filter by location:</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">Filter by location:</span>
                 <button
                   onClick={() => setJurisdictionFilter(null)}
-                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${!jurisdictionFilter ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${!jurisdictionFilter ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                 >
                   All
                 </button>
@@ -429,7 +433,7 @@ export default function DashboardPage({ session }: Props) {
                   <button
                     key={j}
                     onClick={() => setJurisdictionFilter(j === jurisdictionFilter ? null : j)}
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${jurisdictionFilter === j ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${jurisdictionFilter === j ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                   >
                     {j}
                   </button>
@@ -448,16 +452,16 @@ export default function DashboardPage({ session }: Props) {
                     <div key={tg.id}>
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <h2 className="text-sm font-semibold text-gray-800">{tg.title}</h2>
+                          <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{tg.title}</h2>
                           {(tg.trip_date_start || tg.trip_date_end) && (
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
                               {tg.trip_date_start ?? ''}{tg.trip_date_start && tg.trip_date_end ? ' – ' : ''}{tg.trip_date_end ?? ''}
                             </p>
                           )}
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-semibold text-gray-700">{formatCAD(subtotal)}</span>
-                          <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{groupExpenses.length}</span>
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{formatCAD(subtotal)}</span>
+                          <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">{groupExpenses.length}</span>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -476,8 +480,8 @@ export default function DashboardPage({ session }: Props) {
                   return (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-sm font-semibold text-gray-500">Ungrouped</h2>
-                        <span className="text-xs text-gray-400">{ungrouped.length} · {formatCAD(subtotal)}</span>
+                        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Ungrouped</h2>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{ungrouped.length} · {formatCAD(subtotal)}</span>
                       </div>
                       <div className="space-y-2">
                         {ungrouped.map(expense => (
@@ -496,10 +500,10 @@ export default function DashboardPage({ session }: Props) {
                   return (
                     <div key={status}>
                       <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                           {label}
                         </h2>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {items.length} · {formatCAD(groupTotal)}
                         </span>
                       </div>
