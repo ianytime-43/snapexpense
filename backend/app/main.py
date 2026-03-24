@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import account, calendar, email_ingest, expenses, export, gmail_scan, groups, insights, outlook, outlook_scan, receipts, reminders, settings, splits, users
+from .routers import account, calendar, email_ingest, expenses, export, gmail_scan, groups, insights, outlook, outlook_scan, receipts, reminders, settings, splits, tax, users
 
 app = FastAPI(title="SnapExpense API", version="0.2.0")
 
@@ -35,6 +35,7 @@ app.include_router(gmail_scan.router, prefix="/api")
 app.include_router(outlook_scan.router)
 app.include_router(insights.router, prefix="/api")
 app.include_router(splits.router, prefix="/api")
+app.include_router(tax.router, prefix="/api")
 
 
 @app.get("/api/health")

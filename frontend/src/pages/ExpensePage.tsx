@@ -9,8 +9,10 @@ import {
   getExpense,
   getGroups,
   removeExpenseFromGroup,
+  splitExpense,
   updateExpense,
 } from '../lib/api'
+import SplitExpense from '../components/SplitExpense'
 import type { Expense, ExpenseGroup } from '../types'
 
 type CalendarAction = 'accepted' | 'dismissed' | null
@@ -122,6 +124,7 @@ export default function ExpensePage({ session }: Props) {
   const groupDropdownRef = useRef<HTMLDivElement>(null)
   const [suggestedTag, setSuggestedTag] = useState<string | null>(null)
   const [tagReason, setTagReason] = useState<string | null>(null)
+  const [showSplit, setShowSplit] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -236,6 +239,12 @@ export default function ExpensePage({ session }: Props) {
     } catch {
       // ignore
     }
+  }
+
+  const handleSplit = async (businessPct: number, businessTag: string) => {
+    if (!id) return
+    await splitExpense(id, businessPct, businessTag, session.access_token)
+    navigate('/dashboard')
   }
 
   const patch = (key: keyof Expense) =>
@@ -915,28 +924,46 @@ export default function ExpensePage({ session }: Props) {
         )}
       </main>
 
+      {/* Split expense sheet */}
+      {showSplit && (
+        <SplitExpense
+          expense={expense}
+          onSplit={handleSplit}
+          onCancel={() => setShowSplit(false)}
+        />
+      )}
+
       {/* Action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 safe-area-bottom">
         <div className="max-w-2xl mx-auto">
           {isDraft ? (
-            <div className="flex gap-3">
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDiscard}
+                  disabled={saving}
+                  className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={saving}
+                  className="flex-[2] bg-green-600 text-white rounded-xl py-3.5 text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {saving
+                    ? 'Saving…'
+                    : isEditing
+                      ? 'Save & Confirm'
+                      : 'Confirm expense'}
+                </button>
+              </div>
               <button
-                onClick={handleDiscard}
+                onClick={() => setShowSplit(true)}
                 disabled={saving}
-                className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full border border-blue-200 text-blue-600 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
               >
-                Discard
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={saving}
-                className="flex-[2] bg-green-600 text-white rounded-xl py-3.5 text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {saving
-                  ? 'Saving…'
-                  : isEditing
-                    ? 'Save & Confirm'
-                    : 'Confirm expense'}
+                Split expense
               </button>
             </div>
           ) : (
