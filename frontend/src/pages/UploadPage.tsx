@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { uploadReceipt } from '../lib/api'
 import CameraCapture from '../components/CameraCapture'
+import ScannerMode from '../components/ScannerMode'
 import { saveToQueue } from '../hooks/useOfflineQueue'
 
 interface Props {
@@ -245,6 +246,7 @@ export default function UploadPage({ session }: Props) {
   const [items, setItems] = useState<FileItem[]>([])
   const [uploading, setUploading] = useState(false)
   const [cameraMode, setCameraMode] = useState(false)
+  const [scannerMode, setScannerMode] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -343,6 +345,21 @@ export default function UploadPage({ session }: Props) {
     setUploading(false)
   }
 
+  const handleScannerComplete = async (files: File[]) => {
+    setScannerMode(false)
+    if (files.length === 0) return
+
+    const newItems: FileItem[] = await Promise.all(
+      files.map(async (file) => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: await readPreview(file),
+        status: 'pending' as FileStatus,
+      })),
+    )
+    setItems(newItems)
+  }
+
   const reset = () => {
     setItems([])
     setUploading(false)
@@ -368,6 +385,13 @@ export default function UploadPage({ session }: Props) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6">
+        {scannerMode && (
+          <ScannerMode
+            onComplete={handleScannerComplete}
+            onCancel={() => setScannerMode(false)}
+          />
+        )}
+
         {/* Camera capture overlay */}
         {cameraMode && (
           <CameraCapture
@@ -380,13 +404,22 @@ export default function UploadPage({ session }: Props) {
         )}
 
         {/* Select stage */}
-        {items.length === 0 && !cameraMode && (
+        {items.length === 0 && !cameraMode && !scannerMode && (
           <div className="space-y-3">
             {sharedNotice && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
                 Processing shared receipt…
               </div>
             )}
+            <button
+              onClick={() => setScannerMode(true)}
+              className="bg-green-600 text-white rounded-xl px-4 py-3 text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Scanner Mode
+            </button>
             <button
               onClick={() => setCameraMode(true)}
               className="w-full bg-white border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-all"
