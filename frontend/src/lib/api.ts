@@ -250,6 +250,16 @@ export async function getAnomalies(token: string) {
   return res.json()
 }
 
+// ── Tax ───────────────────────────────────────────────────────────────────────
+
+export async function getQuarterlyEstimate(token: string, annualIncome: number) {
+  const res = await fetch(`${API_BASE}/tax/quarterly-estimate?annual_income=${annualIncome}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
   const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
     method: 'POST',
