@@ -389,6 +389,18 @@ export default function DashboardPage({ session }: Props) {
               </svg>
             </button>
 
+            {/* Mileage tracker */}
+            <button
+              onClick={() => navigate('/mileage')}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              aria-label="Mileage"
+              title="Mileage tracker"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </button>
+
             {/* Trips toggle */}
             <button
               onClick={() => setGroupByTrip(!groupByTrip)}

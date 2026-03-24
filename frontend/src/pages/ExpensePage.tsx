@@ -692,10 +692,10 @@ export default function ExpensePage({ session }: Props) {
               ) : (
                 <span className="text-sm text-gray-900">
                   {expense.payment_method
-                    ? PAYMENT_METHODS.find(
+                    ? (PAYMENT_METHODS.find(
                         (m) => m.value === expense.payment_method,
-                      )?.label
-                    : null ?? <span className="text-gray-400">—</span>}
+                      )?.label ?? <span className="text-gray-400">—</span>)
+                    : <span className="text-gray-400">—</span>}
                   {expense.card_last_four && (
                     <span className="text-gray-400 ml-1">
                       ····{expense.card_last_four}
@@ -792,6 +792,14 @@ export default function ExpensePage({ session }: Props) {
                     .filter(Boolean)
                     .join(', ')}
                 </span>
+                {expense.amount_total && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Cost per person: {formatCAD(expense.amount_total / (expense.attendees.length + 1), expense.currency)}
+                      <span className="ml-1">({expense.attendees.length + 1} people including you)</span>
+                    </p>
+                  </div>
+                )}
               </Row>
             )}
 
