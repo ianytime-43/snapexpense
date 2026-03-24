@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import CookieConsent from './components/CookieConsent'
 import { useDarkMode } from './hooks/useDarkMode'
 import { ToastProvider, useOnlineToast } from './hooks/useToast'
 import AuthPage from './pages/AuthPage'
@@ -147,6 +148,7 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <AppRoutes session={session} />
+          <CookieConsent />
         </BrowserRouter>
       </ToastProvider>
     </ErrorBoundary>

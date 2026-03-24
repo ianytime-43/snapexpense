@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import calendar, email_ingest, expenses, export, gmail_scan, groups, outlook, outlook_scan, receipts, reminders, settings, users
+from .routers import account, calendar, email_ingest, expenses, export, gmail_scan, groups, outlook, outlook_scan, receipts, reminders, settings, users
 
 app = FastAPI(title="SnapExpense API", version="0.2.0")
 
@@ -20,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(account.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(receipts.router, prefix="/api")
 app.include_router(email_ingest.router, prefix="/api")

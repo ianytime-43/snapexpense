@@ -193,6 +193,24 @@ export async function scanGmail(token: string, months: number): Promise<EmailSca
   return data.results
 }
 
+// ── Account ──────────────────────────────────────────────────────────────────
+
+export async function exportMyData(token: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/account/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.blob()
+}
+
+export async function deleteMyAccount(token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/account/delete`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
   const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
     method: 'POST',

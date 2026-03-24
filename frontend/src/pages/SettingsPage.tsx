@@ -2,8 +2,10 @@ import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  deleteMyAccount,
   disconnectCalendar,
   disconnectOutlook,
+  exportMyData,
   getCalendarAuthUrl,
   getCalendarStatus,
   getMe,
@@ -212,6 +214,44 @@ export default function SettingsPage({ session }: Props) {
       document.body.removeChild(el)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleExportData = async () => {
+    try {
+      const blob = await exportMyData(session.access_token)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'snapexpense_export.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Export failed. Please try again.')
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    const confirmed = confirm(
+      'Are you sure you want to delete your account?\n\n' +
+      'This will permanently delete:\n' +
+      '- All your expenses and receipts\n' +
+      '- Your profile and preferences\n' +
+      '- All connected accounts\n\n' +
+      'This action cannot be undone.'
+    )
+    if (!confirmed) return
+
+    const doubleConfirm = confirm('This is permanent. Type OK to proceed.')
+    if (!doubleConfirm) return
+
+    try {
+      await deleteMyAccount(session.access_token)
+      window.location.href = '/'
+    } catch {
+      alert('Deletion failed. Please try again or contact support.')
     }
   }
 
@@ -574,6 +614,30 @@ export default function SettingsPage({ session }: Props) {
                 {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System'}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Your Data card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Your Data
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Download or delete all your data. We respect your privacy rights under PIPEDA and CCPA.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={handleExportData}
+              className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            >
+              Download all my data (ZIP)
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              className="w-full text-left px-4 py-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            >
+              Delete my account permanently
+            </button>
           </div>
         </div>
 
