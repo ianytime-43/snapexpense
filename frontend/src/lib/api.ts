@@ -260,6 +260,61 @@ export async function getQuarterlyEstimate(token: string, annualIncome: number) 
   return res.json()
 }
 
+export async function getTaxSummary(token: string, quarter?: number, year?: number) {
+  const params = new URLSearchParams()
+  if (quarter) params.set('quarter', quarter.toString())
+  if (year) params.set('year', year.toString())
+  const res = await fetch(`${API_BASE}/tax/summary?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+// ── Mileage ──────────────────────────────────────────────────────────────────
+
+export interface TripData {
+  start_address?: string
+  end_address?: string
+  start_lat?: number
+  start_lng?: number
+  end_lat?: number
+  end_lng?: number
+  distance_km?: number
+  trip_date?: string
+  trip_tag?: 'business' | 'work' | 'personal' | 'commute'
+  notes?: string
+}
+
+export async function getTrips(token: string, months = 3) {
+  return apiFetch(`/mileage/trips?months=${months}`, token)
+}
+
+export async function createTrip(token: string, data: TripData) {
+  return apiFetch('/mileage/trips', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTrip(token: string, id: string, data: Partial<TripData>) {
+  return apiFetch(`/mileage/trips/${id}`, token, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTrip(token: string, id: string) {
+  return apiFetch(`/mileage/trips/${id}`, token, { method: 'DELETE' })
+}
+
+export async function getMileageSummary(token: string, year?: number) {
+  const params = year ? `?year=${year}` : ''
+  return apiFetch(`/mileage/summary${params}`, token)
+}
+
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
   const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
     method: 'POST',

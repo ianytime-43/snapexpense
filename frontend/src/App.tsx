@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage'
 import SubmitSessionPage from './pages/SubmitSessionPage'
 import TermsPage from './pages/TermsPage'
 import QuarterlyEstimatePage from './pages/QuarterlyEstimatePage'
+import TaxDashboardPage from './pages/TaxDashboardPage'
 import UploadPage from './pages/UploadPage'
 
 function Spinner() {
@@ -108,6 +109,16 @@ function AppRoutes({ session }: { session: Session | null }) {
         element={
           session ? (
             <QuarterlyEstimatePage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+      <Route
+        path="/tax"
+        element={
+          session ? (
+            <TaxDashboardPage session={session} />
           ) : (
             <Navigate to="/auth" replace />
           )

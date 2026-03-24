@@ -3,6 +3,7 @@ Tax router — quarterly estimate endpoint.
 Prefix: /tax
 """
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
@@ -79,3 +80,98 @@ def get_quarterly_estimate(
 
     result["confirmed_deductions_used"] = round(annual_deductions, 2)
     return result
+
+
+@router.get("/summary")
+def get_tax_summary(
+    quarter: int = Query(default=None, ge=1, le=4),
+    year: int = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+):
+    """Tax dashboard summary — ITCs, deductions, by jurisdiction and category."""
+    user_id = current_user["user"]["id"]
+    admin = get_supabase_admin()
+
+    # Default to current quarter/year
+    now = datetime.now()
+    if not year:
+        year = now.year
+    if not quarter:
+        quarter = (now.month - 1) // 3 + 1
+
+    # Date range for quarter
+    q_start = f"{year}-{(quarter - 1) * 3 + 1:02d}-01"
+    q_end_month = quarter * 3
+    if q_end_month == 12:
+        q_end = f"{year}-12-31"
+    else:
+        q_end = f"{year}-{q_end_month + 1:02d}-01"
+
+    # Fetch expenses in range
+    expenses = (
+        admin.table("expenses")
+        .select("*")
+        .eq("user_id", user_id)
+        .gte("expense_date", q_start)
+        .lt("expense_date", q_end)
+        .execute()
+    )
+
+    data = expenses.data or []
+
+    # Filter to business/work only for tax calculations
+    taxable = [e for e in data if e.get("expense_tag") != "personal"]
+    all_expenses = data
+
+    # Total tax savings (ITCs for CA, deductions for US)
+    total_itc = sum(float(e.get("itc_claimable") or 0) for e in taxable)
+    total_deductible = sum(float(e.get("tax_deductible_amount") or 0) for e in taxable)
+    total_amount = sum(float(e.get("amount_total") or 0) for e in taxable)
+
+    # By jurisdiction
+    jurisdictions = {}
+    for e in taxable:
+        j = e.get("location_jurisdiction") or "Unknown"
+        if j not in jurisdictions:
+            jurisdictions[j] = {"amount": 0, "count": 0, "itc": 0}
+        jurisdictions[j]["amount"] += float(e.get("amount_total") or 0)
+        jurisdictions[j]["count"] += 1
+        jurisdictions[j]["itc"] += float(e.get("itc_claimable") or 0)
+
+    # By category with tax line
+    categories = {}
+    for e in taxable:
+        cat = e.get("category") or "Other"
+        if cat not in categories:
+            categories[cat] = {"amount": 0, "deductible": 0, "count": 0, "tax_line": e.get("tax_line", ""), "deduction_pct": float(e.get("deduction_pct") or 1.0)}
+        categories[cat]["amount"] += float(e.get("amount_total") or 0)
+        categories[cat]["deductible"] += float(e.get("tax_deductible_amount") or 0)
+        categories[cat]["count"] += 1
+
+    # Completeness
+    total_count = len(all_expenses)
+    categorized = len([e for e in all_expenses if e.get("category") and e.get("expense_tag")])
+    drafts = len([e for e in all_expenses if e.get("status") == "draft"])
+    completeness = (categorized / total_count * 100) if total_count > 0 else 100
+
+    return {
+        "quarter": quarter,
+        "year": year,
+        "savings": {
+            "itc_total": round(total_itc, 2),
+            "deductible_total": round(total_deductible, 2),
+            "total_business_expenses": round(total_amount, 2),
+        },
+        "jurisdictions": [
+            {"name": k, **v} for k, v in sorted(jurisdictions.items(), key=lambda x: x[1]["amount"], reverse=True)
+        ],
+        "categories": [
+            {"name": k, **v} for k, v in sorted(categories.items(), key=lambda x: x[1]["amount"], reverse=True)
+        ],
+        "completeness": {
+            "percentage": round(completeness, 1),
+            "total": total_count,
+            "categorized": categorized,
+            "drafts": drafts,
+        },
+    }
