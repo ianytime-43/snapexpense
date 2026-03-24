@@ -96,6 +96,11 @@ function Row({
   )
 }
 
+function formatCAD(amount: number | null, currency = 'CAD') {
+  if (amount == null) return '—'
+  return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(amount)
+}
+
 const inputCls =
   'border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
 
@@ -346,9 +351,9 @@ export default function ExpensePage({ session }: Props) {
           </div>
         )}
 
-        {/* OCR confidence badge */}
+        {/* OCR confidence badge + document type badge */}
         {expense.receipts?.[0]?.ocr_confidence != null && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span
               className={`text-xs px-2 py-1 rounded-full font-medium ${
                 expense.receipts[0].ocr_confidence >= 0.8
@@ -361,6 +366,17 @@ export default function ExpensePage({ session }: Props) {
               OCR confidence:{' '}
               {Math.round(expense.receipts[0].ocr_confidence * 100)}%
             </span>
+            {expense.document_type && expense.document_type !== 'receipt' && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                expense.document_type === 'invoice' ? 'bg-orange-100 text-orange-700' :
+                expense.document_type === 'subscription' ? 'bg-purple-100 text-purple-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+                {expense.document_type === 'invoice' ? 'Invoice' :
+                 expense.document_type === 'subscription' ? 'Subscription' :
+                 'Payment Confirmation'}
+              </span>
+            )}
             {expense.receipts[0].ocr_confidence < 0.5 && (
               <span className="text-xs text-gray-400">
                 Low quality — please review fields carefully
@@ -423,6 +439,25 @@ export default function ExpensePage({ session }: Props) {
               </div>
             </div>
           )}
+
+        {/* Invoice due date */}
+        {expense.document_type === 'invoice' && expense.due_date && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm">
+            <span className="text-orange-700 font-medium">Due: {expense.due_date}</span>
+          </div>
+        )}
+
+        {/* Alcohol notice */}
+        {expense.alcohol_total != null && expense.alcohol_total > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
+            <p className="text-amber-700 font-medium">
+              Alcohol detected: {formatCAD(expense.alcohol_total, expense.currency)}
+            </p>
+            <p className="text-amber-600 text-xs mt-1">
+              Meal expenses including alcohol are 50% deductible under CRA/IRS rules.
+            </p>
+          </div>
+        )}
 
         {/* Extracted fields */}
         <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">

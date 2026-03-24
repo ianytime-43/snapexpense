@@ -178,6 +178,9 @@ def process_receipt_bytes(
         "payment_method": safe_payment_method(parsed.get("payment_method")),
         "card_last_four": safe_card(parsed.get("card_last_four")),
         "category": parsed.get("category"),
+        "document_type": parsed.get("document_type") or "receipt",
+        "alcohol_total": safe_float(parsed.get("alcohol_total")),
+        "due_date": safe_date(parsed.get("due_date")),
         "location_name": location_name,
         "location_jurisdiction": location_jurisdiction,
     }

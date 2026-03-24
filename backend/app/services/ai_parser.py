@@ -21,7 +21,11 @@ Return ONLY a valid JSON object with exactly these fields (use null for any miss
   "payment_method": "personal_card" or "corporate_card" or "cash" or null,
   "card_last_four": "XXXX" (4 digits) or null,
   "category": one of ["Meals & Entertainment","Travel","Accommodation","Transportation","Office Supplies","Software","Marketing","Professional Services","Other"] or null,
-  "line_items": [{{"description": string, "quantity": number or null, "unit_price": number or null, "total_price": number or null}}]
+  "line_items": [{{"description": string, "quantity": number or null, "unit_price": number or null, "total_price": number or null}}],
+  "document_type": one of "receipt", "invoice", "subscription", "payment_confirmation". Receipts show items already paid. Invoices show amounts due. Subscription confirmations are recurring charges. Payment confirmations prove a payment was made.,
+  "due_date": if this is an invoice, the due date in "YYYY-MM-DD" format. null for receipts.,
+  "alcohol_items": array of items that are alcoholic beverages (beer, wine, spirits, cocktails). Each item: {{"description": "item name", "amount": number}}. Empty array if no alcohol.,
+  "alcohol_total": total amount for alcohol items. 0 if no alcohol.
 }}
 
 Receipt text:
