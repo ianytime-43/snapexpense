@@ -104,6 +104,21 @@ def process_receipt_bytes(
         if resolved_category and not parsed.get("category"):
             parsed = {**parsed, "category": resolved_category}
 
+    # Vendor memory lookup — auto-fill from learned preferences
+    try:
+        from app.modules.intel.vendor_memory import lookup_vendor
+        vendor_prefs = lookup_vendor(admin, user_id, parsed.get("merchant_name", ""))
+        if vendor_prefs and vendor_prefs["times_seen"] >= 2:
+            # Auto-fill category if not already set by AI parser
+            if vendor_prefs.get("category") and not parsed.get("category"):
+                parsed["category"] = vendor_prefs["category"]
+            # Auto-fill tag (stored on expense_data, built below)
+            if vendor_prefs.get("expense_tag"):
+                parsed["_vendor_expense_tag"] = vendor_prefs["expense_tag"]
+            logger.info(f"Vendor memory applied for {parsed.get('merchant_name')} (seen {vendor_prefs['times_seen']}x)")
+    except Exception as e:
+        logger.warning(f"Vendor memory lookup failed: {e}")
+
     # Ensure public.users row exists (needed for calendar token lookup)
     _ensure_user_row(admin, user_id)
 
@@ -184,6 +199,10 @@ def process_receipt_bytes(
         "location_name": location_name,
         "location_jurisdiction": location_jurisdiction,
     }
+
+    # Apply vendor memory expense tag (set before expense_data was built)
+    if parsed.get("_vendor_expense_tag"):
+        expense_data["expense_tag"] = parsed["_vendor_expense_tag"]
 
     # Currency conversion — convert to user's default currency (CAD)
     DEFAULT_CURRENCY = "CAD"

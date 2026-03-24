@@ -144,7 +144,24 @@ def update_expense(
     result = (
         admin.table("expenses").update(update_data).eq("id", expense_id).execute()
     )
-    return result.data[0] if result.data else {}
+    updated = result.data[0] if result.data else {}
+
+    # Learn vendor preferences when expense is confirmed
+    if update.status == "confirmed":
+        try:
+            from app.modules.intel.vendor_memory import learn_vendor
+            learn_vendor(
+                admin, user_id,
+                merchant_name=updated.get("merchant_name", ""),
+                category=updated.get("category"),
+                expense_tag=updated.get("expense_tag"),
+                tax_rate=updated.get("tax_rate_applied"),
+                payment_method=updated.get("payment_method"),
+            )
+        except Exception:
+            pass  # Non-fatal
+
+    return updated
 
 
 @router.delete("/{expense_id}")
