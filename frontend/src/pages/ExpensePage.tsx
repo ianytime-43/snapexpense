@@ -120,6 +120,8 @@ export default function ExpensePage({ session }: Props) {
   const [creatingGroup, setCreatingGroup] = useState(false)
   const [groupSaving, setGroupSaving] = useState(false)
   const groupDropdownRef = useRef<HTMLDivElement>(null)
+  const [suggestedTag, setSuggestedTag] = useState<string | null>(null)
+  const [tagReason, setTagReason] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -135,6 +137,33 @@ export default function ExpensePage({ session }: Props) {
   useEffect(() => {
     getGroups(session.access_token).then(setGroups).catch(() => {})
   }, [session])
+
+  useEffect(() => {
+    if (!expense) return
+
+    // Simple client-side suggestion based on time
+    const expTime = expense.expense_time
+    const expDate = expense.expense_date
+
+    if (expense.calendar_match_confidence && expense.calendar_match_confidence >= 0.4) {
+      setSuggestedTag('business')
+      setTagReason('Calendar match found')
+    } else if (expTime && expDate) {
+      const hour = parseInt(expTime.split(':')[0], 10)
+      const date = new Date(expDate)
+      const dayOfWeek = date.getDay() // 0=Sun, 6=Sat
+      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+      const isWorkHours = hour >= 9 && hour <= 17
+
+      if (isWeekday && isWorkHours) {
+        setSuggestedTag('business')
+        setTagReason('During work hours')
+      } else {
+        setSuggestedTag('personal')
+        setTagReason('Outside work hours')
+      }
+    }
+  }, [expense])
 
   // Close group dropdown on outside click
   useEffect(() => {
@@ -196,6 +225,16 @@ export default function ExpensePage({ session }: Props) {
       // ignore
     } finally {
       setGroupSaving(false)
+    }
+  }
+
+  const handleTagChange = async (tag: string) => {
+    if (!expense) return
+    try {
+      await updateExpense(expense.id, { expense_tag: tag }, session.access_token)
+      setExpense(prev => prev ? { ...prev, expense_tag: tag as Expense['expense_tag'] } : prev)
+    } catch {
+      // ignore
     }
   }
 
@@ -833,6 +872,40 @@ export default function ExpensePage({ session }: Props) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Expense tag */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 font-medium uppercase tracking-wider">
+            Expense Type
+          </p>
+          <div className="flex gap-2">
+            {[
+              { id: 'business', label: 'Business', color: 'green' },
+              { id: 'work', label: 'Work', color: 'blue' },
+              { id: 'personal', label: 'Personal', color: 'gray' },
+            ].map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => handleTagChange(tag.id)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  expense?.expense_tag === tag.id
+                    ? tag.color === 'green' ? 'bg-green-600 text-white'
+                      : tag.color === 'blue' ? 'bg-blue-600 text-white'
+                      : 'bg-gray-600 text-white'
+                    : `bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
+                }`}
+              >
+                {tag.label}
+                {suggestedTag === tag.id && expense?.expense_tag !== tag.id && (
+                  <span className="ml-1 text-xs opacity-60">suggested</span>
+                )}
+              </button>
+            ))}
+          </div>
+          {tagReason && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{tagReason}</p>
+          )}
         </div>
 
         {error && (
