@@ -73,8 +73,9 @@ backend/app/
 
 ## Wave 1: Scanning Just Works
 
-**32 features. Goal: Make receipt capture so effortless users scan everything.**
-**Overall score: 93/100** (after all fixes applied)
+**28 features. Goal: Make receipt capture so effortless users scan everything.**
+**Feature quality score: 93/100** (after all fixes applied)
+**Competitive market position at launch: 76/100** (vs mature competitors with years of polish)
 
 ### 1.1 Auto-Scan Camera + Back-to-Back Mode
 
@@ -543,7 +544,7 @@ QuickBooks Online, Xero, Wave, FreshBooks, Sage. OAuth connect → smart categor
 
 ### 3.2 Bank Transaction Matching
 
-Plaid integration. Fuzzy matching: amount (40%), date (25%), merchant name (25%), currency (10%). Auto-match at 90%+ confidence. "Possible match — confirm?" at 60-89%. Three sections: matched, unmatched transactions (need receipts), unmatched receipts (cash payments?). Receipt coverage percentage. IRS $75 rule: under $75 can create expense without receipt.
+Plaid integration. Fuzzy matching: amount (40%), date (25%), merchant name (25%), currency (10%). Auto-match at 90%+ confidence. "Possible match — confirm?" at 60-89%. Three sections: matched, unmatched transactions (need receipts), unmatched receipts (cash payments?). Receipt coverage percentage. IRS $75 rule: expenses under $75 (excluding lodging) can be documented without a receipt per IRS Reg 1.274-5(c)(2)(iii). Does NOT apply to hotel/lodging expenses which always require receipts.
 
 **Files:**
 - NEW: `backend/app/modules/integrations/plaid.py`
@@ -671,8 +672,11 @@ Search bar on dashboard. User types: "uber rides over $30 in january" → Claude
 | Data export | Build it | "Download all my data" → ZIP |
 | Account deletion | Build it | Permanent purge, all data |
 | Age gate | Checkbox on signup | Eliminates COPPA |
-| Google API | Metadata scope only | No CASA needed, $0 |
-| Microsoft API | Publisher verification | Free |
+| CCPA/CPRA readiness | Build into app | "Do Not Sell" link, data access/deletion portal, privacy policy disclosures. Not legally required until 100K CA users but enterprise customers expect it. |
+| WCAG 2.1 AA accessibility | Free tools | Lighthouse + axe-core in CI/CD. Color contrast, screen reader labels, keyboard navigation, 44pt touch targets, reduce-motion support. ADA Title III applies. |
+| PIPEDA breach notification plan | Write document | Notify Privacy Commissioner + affected users within 72 hours if "real risk of significant harm." Keep 2-year records. |
+| Google API | Metadata scope only | No CASA needed, $0. Note: verification takes 2-6 weeks — start early. |
+| Microsoft API | Publisher verification | Free, 2-4 weeks |
 
 ### Paid Compliance (From Revenue)
 
@@ -799,7 +803,7 @@ Month 12+: ENTERPRISE
 | 60 | 76 | Spend forecasting ("Q2 travel will exceed by 15%") | 3 |
 | 61 | 75 | Tip intelligence (deductibility + policy + proportional split) | 2 |
 | 62 | 75 | Attendee cost splitting ($200 ÷ 4 = $50/person) | 2 |
-| 63 | 75 | Biometric lock configurable timeout | 1 |
+| — | — | ~~Biometric lock timeout~~ (merged into rank 46) | — |
 | 64 | 75 | Spanish language UI | 3 |
 | 65 | 75 | Return window alerts (store policy + countdown) | 3 |
 | 66 | 74 | Scheduled auto-submit reports (weekly/monthly) | 2 |
@@ -815,11 +819,10 @@ Month 12+: ENTERPRISE
 | # | Migration | Wave |
 |---|-----------|------|
 | 011 | GPS columns (latitude, longitude on expenses) | 1 |
-| 012 | Payment platform tokens | 1 |
-| 013 | Expense tags + user work hours + country/region | 1 |
-| 014 | Vendor memory table | 1 |
-| 015 | Document type + alcohol columns | 1 |
-| 016 | Payment platform OAuth tokens | 1 |
+| 012 | Expense tags + user work hours + country/region + notification preferences + user locale | 1 |
+| 013 | Vendor memory table | 1 |
+| 014 | Document type + alcohol columns | 1 |
+| 015 | Payment platform OAuth tokens (PayPal, Stripe) | 1 |
 | 017 | Tax engine (deductible amount, ITC, tax category line) | 2 |
 | 018 | Budgets table | 2 |
 | 019 | Split expense columns (split_from_id, split_percentage) | 2 |
