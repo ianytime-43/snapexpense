@@ -4,10 +4,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   deleteMyAccount,
   disconnectCalendar,
+  disconnectIntegration,
   disconnectOutlook,
   exportMyData,
   getCalendarAuthUrl,
   getCalendarStatus,
+  getIntegrationConnections,
   getMe,
   getOutlookAuthUrl,
   getOutlookStatus,
@@ -15,6 +17,7 @@ import {
   scanOutlook,
   updateMe,
 } from '../lib/api'
+import type { IntegrationConnection } from '../lib/api'
 import { useDarkMode } from '../hooks/useDarkMode'
 import type { EmailScanResult, UserProfile } from '../types'
 
@@ -49,12 +52,22 @@ export default function SettingsPage({ session }: Props) {
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanSource, setScanSource] = useState<'gmail' | 'outlook' | null>(null)
   const [showForwarding, setShowForwarding] = useState(false)
+  const [integrationConnections, setIntegrationConnections] = useState<IntegrationConnection[]>([])
+  const [integrationsLoading, setIntegrationsLoading] = useState(true)
+  const [integrationsWorking, setIntegrationsWorking] = useState<string | null>(null)
   const { theme, setTheme } = useDarkMode()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   useEffect(() => {
     getMe(session.access_token).then(setUserProfile).catch(() => {})
+  }, [session])
+
+  useEffect(() => {
+    getIntegrationConnections(session.access_token)
+      .then(setIntegrationConnections)
+      .catch(() => {})
+      .finally(() => setIntegrationsLoading(false))
   }, [session])
 
   useEffect(() => {
@@ -233,6 +246,19 @@ export default function SettingsPage({ session }: Props) {
     }
   }
 
+  const handleIntegrationDisconnect = async (platform: string) => {
+    if (!confirm(`Disconnect ${platform}? Your category mappings will also be removed.`)) return
+    setIntegrationsWorking(platform)
+    try {
+      await disconnectIntegration(session.access_token, platform)
+      setIntegrationConnections((prev) => prev.filter((c) => c.platform !== platform))
+    } catch {
+      // ignore
+    } finally {
+      setIntegrationsWorking(null)
+    }
+  }
+
   const handleDeleteAccount = async () => {
     const confirmed = confirm(
       'Are you sure you want to delete your account?\n\n' +
@@ -273,6 +299,74 @@ export default function SettingsPage({ session }: Props) {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+
+        {/* Connected Accounts card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Connected Accounts
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Connect your accounting software to sync expenses automatically.
+            OAuth flows will be available in an upcoming release.
+          </p>
+
+          {integrationsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-14 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[
+                { id: 'quickbooks', label: 'QuickBooks Online', color: 'bg-green-600 hover:bg-green-700' },
+                { id: 'xero', label: 'Xero', color: 'bg-blue-600 hover:bg-blue-700' },
+                { id: 'wave', label: 'Wave', color: 'bg-indigo-600 hover:bg-indigo-700' },
+              ].map(({ id, label, color }) => {
+                const conn = integrationConnections.find((c) => c.platform === id)
+                const isWorking = integrationsWorking === id
+                return (
+                  <div
+                    key={id}
+                    className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {conn && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+                        {conn && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                            {conn.company_name ? conn.company_name : 'Connected'}
+                            {conn.last_synced_at
+                              ? ` · Last synced ${new Date(conn.last_synced_at).toLocaleDateString()}`
+                              : ''}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {conn ? (
+                      <button
+                        onClick={() => handleIntegrationDisconnect(id)}
+                        disabled={isWorking}
+                        className="text-sm text-red-500 hover:text-red-700 font-medium shrink-0 disabled:opacity-50"
+                      >
+                        {isWorking ? 'Disconnecting…' : 'Disconnect'}
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        title="OAuth coming soon"
+                        className={`shrink-0 text-sm font-medium text-white px-4 py-1.5 rounded-lg opacity-50 cursor-not-allowed ${color}`}
+                      >
+                        Connect
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Google Calendar card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">

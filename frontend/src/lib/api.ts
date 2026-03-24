@@ -315,6 +315,36 @@ export async function getMileageSummary(token: string, year?: number) {
   return apiFetch(`/mileage/summary${params}`, token)
 }
 
+// ── Integrations ─────────────────────────────────────────────────────────────
+
+export interface IntegrationConnection {
+  platform: string
+  company_name: string | null
+  connected_at: string | null
+  last_synced_at: string | null
+}
+
+export async function getIntegrationConnections(token: string): Promise<IntegrationConnection[]> {
+  const data = await apiFetch('/integrations/connections', token)
+  return data.connections
+}
+
+export async function connectIntegration(
+  token: string,
+  platform: string,
+  companyName = '',
+): Promise<void> {
+  await apiFetch('/integrations/connect', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ platform, company_name: companyName }),
+  })
+}
+
+export async function disconnectIntegration(token: string, platform: string): Promise<void> {
+  await apiFetch(`/integrations/disconnect/${platform}`, token, { method: 'DELETE' })
+}
+
 export async function scanOutlook(token: string, months: number): Promise<EmailScanResult[]> {
   const res = await fetch(`${API_BASE}/outlook-scan/scan`, {
     method: 'POST',
