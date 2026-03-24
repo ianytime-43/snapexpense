@@ -5,7 +5,7 @@ import BulkActions from '../components/BulkActions'
 import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
 import SwipeableCard from '../components/SwipeableCard'
 import UndoToast from '../components/UndoToast'
-import { confirmExpense, deleteExpense, getExpenses, getGroups } from '../lib/api'
+import { confirmExpense, deleteExpense, getExpenses, getGroups, naturalSearch } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import type { Expense, ExpenseGroup } from '../types'
 
@@ -117,6 +117,9 @@ export default function DashboardPage({ session }: Props) {
     onExpire: () => void
   } | null>(null)
   const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Expense[] | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
   const navigate = useNavigate()
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -253,6 +256,17 @@ export default function DashboardPage({ session }: Props) {
         setUndoAction(null)
       },
     })
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) { setSearchResults(null); return }
+    setSearchLoading(true)
+    try {
+      const res = await naturalSearch(searchQuery, session.access_token)
+      setSearchResults(res.results)
+    } catch { setSearchResults([]) }
+    finally { setSearchLoading(false) }
   }
 
   // Stats
@@ -495,6 +509,30 @@ export default function DashboardPage({ session }: Props) {
           </div>
         )}
 
+        {/* Natural language search */}
+        {!loading && expenses.length > 0 && (
+          <div className="mb-4">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder='Search: "uber rides in january", "meals over $50"...'
+                className="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button type="submit" disabled={searchLoading} className="bg-green-600 text-white rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50">
+                {searchLoading ? '...' : 'Search'}
+              </button>
+              {searchResults !== null && (
+                <button type="button" onClick={() => { setSearchResults(null); setSearchQuery('') }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm px-2">
+                  Clear
+                </button>
+              )}
+            </form>
+            {searchResults !== null && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</p>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="space-y-6">
             <SkeletonStats />
@@ -562,6 +600,19 @@ export default function DashboardPage({ session }: Props) {
                 </div>
               ))}
             </div>
+          </div>
+        ) : searchResults !== null ? (
+          /* Search results view */
+          <div className="space-y-4">
+            {searchResults.length === 0 ? (
+              <p className="text-center text-gray-400 dark:text-gray-500 py-8 text-sm">No results found</p>
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map(expense => (
+                  <ExpenseCard key={expense.id} expense={expense} />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
