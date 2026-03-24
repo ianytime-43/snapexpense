@@ -1,4 +1,5 @@
 import hashlib
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -16,6 +17,8 @@ MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
 def upload_receipt(
     file: UploadFile = File(...),
     source: str = Form("upload"),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = str(current_user["user"].id)
@@ -52,7 +55,14 @@ def upload_receipt(
 
     try:
         expense_id, _ = pipeline.process_receipt_bytes(
-            admin, user_id, file_bytes, filename, content_type, source
+            admin=admin,
+            user_id=user_id,
+            file_bytes=file_bytes,
+            filename=file.filename or "receipt.jpg",
+            content_type=file.content_type or "image/jpeg",
+            source=source,
+            latitude=latitude,
+            longitude=longitude,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

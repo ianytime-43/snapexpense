@@ -61,6 +61,8 @@ def process_receipt_bytes(
     filename: str,
     content_type: str,
     source: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> tuple[str, str]:
     """
     Full pipeline: upload → OCR → AI parse → save expense + receipt + line items.
@@ -208,6 +210,39 @@ def process_receipt_bytes(
         else:  # suggest
             expense_data["calendar_suggested_client"] = cal_match.get("client_name")
             expense_data["calendar_suggested_purpose"] = cal_match.get("business_purpose")
+
+    # GPS-based tax rate lookup
+    tax_rate_applied = None
+    if latitude is not None and longitude is not None:
+        try:
+            from app.modules.tax.geocode import reverse_geocode_to_region
+            from app.modules.tax.rates import get_total_tax_rate
+
+            geo_result = reverse_geocode_to_region(latitude, longitude)
+            if geo_result:
+                country, region = geo_result
+                # Use GPS jurisdiction if location_tagger didn't find one
+                if not expense_data.get("location_jurisdiction"):
+                    expense_data["location_jurisdiction"] = f"{region}, {country}"
+
+                # Look up tax rate for this jurisdiction
+                expense_date = None
+                if expense_data.get("expense_date"):
+                    from datetime import date as date_type
+                    try:
+                        expense_date = date_type.fromisoformat(expense_data["expense_date"])
+                    except (ValueError, TypeError):
+                        pass
+
+                tax_rate_applied = get_total_tax_rate(admin, country, region, expense_date)
+        except Exception as exc:
+            logger.warning("GPS tax rate lookup failed — user=%s: %s", user_id, exc)
+
+    # Add GPS data + tax rate to expense record
+    expense_data["latitude"] = latitude
+    expense_data["longitude"] = longitude
+    if tax_rate_applied is not None:
+        expense_data["tax_rate_applied"] = tax_rate_applied
 
     expense_result = admin.table("expenses").insert(expense_data).execute()
     expense_id: str = expense_result.data[0]["id"]
