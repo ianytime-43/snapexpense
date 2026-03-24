@@ -618,3 +618,35 @@ export async function formatEnterpriseExpenses(
     body: JSON.stringify({ expense_ids: expenseIds, platform }),
   })
 }
+
+
+// -- Natural Language Search --------------------------------------------------
+
+export interface SearchResult {
+  results: import('../types').Expense[]
+  filters: Record<string, unknown>
+  count: number
+  error?: string
+}
+
+export async function naturalSearch(query: string, token: string): Promise<SearchResult> {
+  return apiFetch('/search/natural', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+}
+
+// -- Zapier Webhooks ----------------------------------------------------------
+
+export async function getZapierTriggers(token: string) {
+  return apiFetch('/zapier/triggers', token)
+}
+
+export async function registerZapierWebhook(event: string, url: string, token: string) {
+  return apiFetch('/zapier/webhooks', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event, url }),
+  })
+}
