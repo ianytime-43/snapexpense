@@ -5,7 +5,7 @@ import BulkActions from '../components/BulkActions'
 import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
 import SwipeableCard from '../components/SwipeableCard'
 import UndoToast from '../components/UndoToast'
-import { confirmExpense, getExpenses, getGroups } from '../lib/api'
+import { confirmExpense, deleteExpense, getExpenses, getGroups } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import type { Expense, ExpenseGroup } from '../types'
 
@@ -111,7 +111,11 @@ export default function DashboardPage({ session }: Props) {
   const [jurisdictionFilter, setJurisdictionFilter] = useState<string | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [undoAction, setUndoAction] = useState<{ message: string; undo: () => void } | null>(null)
+  const [undoAction, setUndoAction] = useState<{
+    message: string
+    undo: () => void
+    onExpire: () => void
+  } | null>(null)
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const navigate = useNavigate()
   const exportRef = useRef<HTMLDivElement>(null)
@@ -186,9 +190,21 @@ export default function DashboardPage({ session }: Props) {
   const handleSwipeDelete = (expense: Expense) => {
     const original = expenses
     setExpenses(prev => prev.filter(e => e.id !== expense.id))
+
     setUndoAction({
       message: `Deleted ${expense.merchant_name || 'expense'}`,
-      undo: () => setExpenses(original),
+      undo: () => {
+        setExpenses(original)
+        setUndoAction(null)
+      },
+      onExpire: async () => {
+        try {
+          await deleteExpense(expense.id, session.access_token)
+        } catch {
+          setExpenses(original)
+        }
+        setUndoAction(null)
+      },
     })
   }
 
@@ -217,13 +233,26 @@ export default function DashboardPage({ session }: Props) {
   const handleBulkDelete = () => {
     if (!confirm(`Delete ${selectedIds.size} expenses?`)) return
     const original = expenses
+    const idsToDelete = Array.from(selectedIds)
     setExpenses(prev => prev.filter(e => !selectedIds.has(e.id)))
-    setUndoAction({
-      message: `Deleted ${selectedIds.size} expenses`,
-      undo: () => setExpenses(original),
-    })
     setBulkMode(false)
     setSelectedIds(new Set())
+
+    setUndoAction({
+      message: `Deleted ${idsToDelete.length} expenses`,
+      undo: () => {
+        setExpenses(original)
+        setUndoAction(null)
+      },
+      onExpire: async () => {
+        try {
+          await Promise.all(idsToDelete.map(id => deleteExpense(id, session.access_token)))
+        } catch {
+          setExpenses(original)
+        }
+        setUndoAction(null)
+      },
+    })
   }
 
   // Stats
@@ -657,8 +686,8 @@ export default function DashboardPage({ session }: Props) {
       {undoAction && (
         <UndoToast
           message={undoAction.message}
-          onUndo={() => { undoAction.undo(); setUndoAction(null) }}
-          onExpire={() => setUndoAction(null)}
+          onUndo={() => { undoAction.undo() }}
+          onExpire={() => { undoAction.onExpire() }}
         />
       )}
     </div>
