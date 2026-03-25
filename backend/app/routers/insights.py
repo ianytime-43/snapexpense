@@ -28,16 +28,19 @@ def get_spending_trends(
         admin.table("expenses")
         .select("amount_total, expense_date, category, expense_tag, currency")
         .eq("user_id", user_id)
-        .gte("expense_date", start_date)
         .execute()
     )
 
-    # Group by month
+    # Group by month — include all expenses, filter by date if available
     monthly = defaultdict(lambda: {"total": 0, "business": 0, "work": 0, "personal": 0, "count": 0})
     for e in (expenses.data or []):
-        if not e.get("expense_date") or not e.get("amount_total"):
+        if not e.get("amount_total"):
             continue
-        month_key = e["expense_date"][:7]  # YYYY-MM
+        # Use expense_date if available, otherwise use current month
+        exp_date = e.get("expense_date")
+        if exp_date and exp_date < start_date:
+            continue  # Too old
+        month_key = (exp_date or datetime.now().strftime("%Y-%m-%d"))[:7]  # YYYY-MM
         amount = float(e["amount_total"])
         monthly[month_key]["total"] += amount
         monthly[month_key]["count"] += 1
@@ -67,9 +70,8 @@ def get_top_vendors(
 
     expenses = (
         admin.table("expenses")
-        .select("merchant_name, amount_total")
+        .select("merchant_name, amount_total, expense_date")
         .eq("user_id", user_id)
-        .gte("expense_date", start_date)
         .execute()
     )
 

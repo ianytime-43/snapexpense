@@ -107,32 +107,27 @@ def get_tax_summary(
     else:
         q_end = f"{year}-{q_end_month + 1:02d}-01"
 
-    # Fetch expenses in range (include expenses without dates)
-    expenses_with_date = (
-        admin.table("expenses")
-        .select("*")
-        .eq("user_id", user_id)
-        .gte("expense_date", q_start)
-        .lt("expense_date", q_end)
-        .execute()
-    )
-    # Also get expenses with no date (recently uploaded, date not yet extracted)
-    expenses_no_date = (
-        admin.table("expenses")
-        .select("*")
-        .eq("user_id", user_id)
-        .is_("expense_date", "null")
-        .execute()
-    )
-    expenses_data = (expenses_with_date.data or []) + (expenses_no_date.data or [])
-    # Deduplicate by id
-    seen = set()
+    # Fetch ALL user expenses and filter in Python (avoids Supabase query issues)
+    try:
+        all_expenses = (
+            admin.table("expenses")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error(f"Tax summary query failed: {e}")
+        return {"error": str(e), "savings": {"itc_total": 0, "deductible_total": 0, "total_business_expenses": 0}, "jurisdictions": [], "categories": [], "completeness": {"percentage": 0, "total": 0, "categorized": 0, "drafts": 0}}
+
+    # Filter by quarter date range (include expenses with no date)
     deduped = []
-    for e in expenses_data:
-        if e["id"] not in seen:
-            seen.add(e["id"])
+    for e in (all_expenses.data or []):
+        ed = e.get("expense_date")
+        if ed is None or (ed >= q_start and ed < q_end):
             deduped.append(e)
-    expenses = type('obj', (object,), {'data': deduped})()
+    class _R:
+        def __init__(self, d): self.data = d
+    expenses = _R(deduped)
 
     data = expenses.data or []
 

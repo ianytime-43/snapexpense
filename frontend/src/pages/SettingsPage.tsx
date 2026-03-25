@@ -297,9 +297,16 @@ export default function SettingsPage({ session }: Props) {
     }
   }
 
+  const [exportWorking, setExportWorking] = useState(false)
+
   const handleExportData = async () => {
+    setExportWorking(true)
     try {
-      const blob = await exportMyData(session.access_token)
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/account/export`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -308,8 +315,10 @@ export default function SettingsPage({ session }: Props) {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    } catch {
-      alert('Export failed. Please try again.')
+    } catch (err) {
+      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setExportWorking(false)
     }
   }
 
@@ -874,9 +883,10 @@ export default function SettingsPage({ session }: Props) {
           <div className="space-y-3">
             <button
               onClick={handleExportData}
-              className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+              disabled={exportWorking}
+              className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
-              Download all my data (ZIP)
+              {exportWorking ? 'Generating export…' : 'Download all my data (ZIP)'}
             </button>
             <button
               onClick={handleDeleteAccount}
