@@ -286,10 +286,15 @@ export default function SettingsPage({ session }: Props) {
       const a = document.createElement('a')
       a.href = url
       a.download = `tax_package_${taxPackageYear}.zip`
+      a.style.display = 'none'
       document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => {
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }, 1000)
+      }, 100)
     } catch {
       alert('Download failed. Please try again.')
     } finally {
@@ -308,13 +313,20 @@ export default function SettingsPage({ session }: Props) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
+      // Mobile browsers need window.open fallback for blob downloads
       const a = document.createElement('a')
       a.href = url
       a.download = 'snapexpense_export.zip'
+      a.style.display = 'none'
       document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Try click first, fall back to window.open for mobile
+      setTimeout(() => {
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }, 1000)
+      }, 100)
     } catch (err) {
       alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
