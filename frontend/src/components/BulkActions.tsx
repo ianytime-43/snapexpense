@@ -10,7 +10,7 @@ export default function BulkActions({ selectedCount, onConfirmAll, onDeleteAll, 
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 z-40 safe-area-bottom">
+    <div className="fixed bottom-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3 z-50 shadow-lg">
       <div className="max-w-2xl mx-auto flex items-center justify-between">
         <button onClick={onCancel} className="text-sm text-gray-500 dark:text-gray-400">
           Cancel
