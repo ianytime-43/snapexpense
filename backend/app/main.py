@@ -5,16 +5,21 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import account, accountant, bank, calendar, email_ingest, enterprise, expenses, export, extras, gmail_scan, groups, insights, integrations, mileage, outlook, outlook_scan, receipts, reminders, search, settings, splits, subscriptions, tax, users, zapier
 
-app = FastAPI(title="SnapExpense API", version="0.2.0")
+app = FastAPI(title="SnapExpense API", version="0.3.0")
+
+_frontend_url = os.environ.get("FRONTEND_URL", "")
+_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "https://snapexpense.vercel.app",  # Always allow production
+]
+if _frontend_url and _frontend_url not in _origins:
+    _origins.append(_frontend_url)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        os.environ.get("FRONTEND_URL", "https://snapexpense.vercel.app"),
-    ],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

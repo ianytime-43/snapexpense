@@ -65,7 +65,7 @@ export default function SettingsPage({ session }: Props) {
   const [accountantLoading, setAccountantLoading] = useState(true)
   const [accountantWorking, setAccountantWorking] = useState(false)
   const [accountantError, setAccountantError] = useState<string | null>(null)
-  const [taxPackageYear, setTaxPackageYear] = useState(new Date().getFullYear() - 1)
+  const [taxPackageYear, setTaxPackageYear] = useState(new Date().getFullYear())
   const [taxPackageWorking, setTaxPackageWorking] = useState(false)
   const { theme, setTheme } = useDarkMode()
   const navigate = useNavigate()
@@ -858,7 +858,7 @@ export default function SettingsPage({ session }: Props) {
               onChange={(e) => setTaxPackageYear(Number(e.target.value))}
               className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 - i).map((y) => (
+              {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
