@@ -266,14 +266,45 @@ def process_receipt_bytes(
     if tax_rate_applied is not None:
         expense_data["tax_rate_applied"] = tax_rate_applied
 
+    # Work hours prediction — suggest expense tag
+    try:
+        from app.modules.intel.work_hours import suggest_expense_tag
+
+        user_prefs_row = admin.table("users").select(
+            "expense_categories, work_hours_start, work_hours_end, work_days, country, region"
+        ).eq("id", user_id).maybe_single().execute()
+        user_prefs = user_prefs_row.data or {}
+
+        has_cal = cal_match is not None and cal_match.get("confidence", 0) >= 0.4
+        cal_conf = cal_match.get("confidence", 0) if cal_match else 0
+
+        suggested_tag, tag_reason = suggest_expense_tag(
+            user_prefs=user_prefs,
+            expense_time=parsed.get("expense_time"),
+            expense_date=parsed.get("expense_date"),
+            has_calendar_match=has_cal,
+            calendar_match_confidence=cal_conf,
+        )
+
+        # Only auto-apply if no tag set yet
+        if not expense_data.get("expense_tag"):
+            expense_data["expense_tag"] = suggested_tag
+            logger.info(f"Work hours suggested tag={suggested_tag} reason={tag_reason}")
+    except Exception as e:
+        logger.warning(f"Work hours prediction failed: {e}")
+
     # Tax deduction calculation
     try:
         from app.modules.tax.engine import calculate_expense_tax
 
-        # Get user's country/region
-        user_row = admin.table("users").select("country, region").eq("id", user_id).maybe_single().execute()
-        user_country = (user_row.data or {}).get("country", "CA")
-        user_region = (user_row.data or {}).get("region")
+        # Get user's country/region (reuse if already fetched)
+        if not user_prefs:
+            user_row = admin.table("users").select("country, region").eq("id", user_id).maybe_single().execute()
+            user_country = (user_row.data or {}).get("country", "CA")
+            user_region = (user_row.data or {}).get("region")
+        else:
+            user_country = user_prefs.get("country", "CA")
+            user_region = user_prefs.get("region")
 
         tax_result = calculate_expense_tax(admin, expense_data, user_country, user_region)
         expense_data["tax_deductible_amount"] = tax_result["tax_deductible_amount"]
@@ -330,5 +361,26 @@ def process_receipt_bytes(
         ]
         if items:
             admin.table("expense_line_items").insert(items).execute()
+
+    # Smart duplicate detection — check after save, log warning
+    try:
+        from app.modules.intel.smart_duplicate import find_potential_duplicates
+
+        duplicates = find_potential_duplicates(admin, user_id, expense_data)
+        if duplicates:
+            logger.warning(
+                "Potential duplicate detected for expense=%s: %d matches — %s",
+                expense_id, len(duplicates),
+                ", ".join(d.get("reason", "") for d in duplicates[:3]),
+            )
+            # Store duplicate warning on the expense for frontend to display
+            try:
+                admin.table("expenses").update({
+                    "notes": f"⚠ Possible duplicate: {duplicates[0].get('reason', 'similar expense found')}"
+                }).eq("id", expense_id).is_("notes", "null").execute()
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"Smart duplicate check failed: {e}")
 
     return expense_id, image_url
