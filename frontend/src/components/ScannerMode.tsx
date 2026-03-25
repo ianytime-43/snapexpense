@@ -18,7 +18,7 @@ interface Props {
 // Downscale factor for blur analysis canvas (avoids expensive full-res Laplacian)
 const ANALYSIS_WIDTH = 480
 const ANALYSIS_HEIGHT = 270
-const STABLE_FRAMES_REQUIRED = 15
+const STABLE_FRAMES_REQUIRED = 30  // ~1 second at 30fps — prevents rapid-fire
 
 export default function ScannerMode({ onComplete, onCancel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -108,7 +108,7 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
 
     setBlurScore(score)
 
-    const sharp = score >= 0.35
+    const sharp = score >= 0.40
 
     if (sharp) {
       stableFrameCount.current += 1
@@ -171,7 +171,7 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
         isCapturingRef.current = false
         setScanState('searching')
         scheduleAnalysis()
-      }, 800)
+      }, 2000)  // 2 second cooldown before scanning for next receipt
     } catch {
       isCapturingRef.current = false
       scheduleAnalysis()

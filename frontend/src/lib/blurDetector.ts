@@ -3,7 +3,7 @@
  * Higher variance = sharper image. Normalized to 0-1 range.
  */
 
-const SHARP_THRESHOLD = 0.25
+const SHARP_THRESHOLD = 0.40
 
 function toGrayscale(imageData: ImageData): Float32Array {
   const { data, width, height } = imageData
