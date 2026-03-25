@@ -19,7 +19,7 @@ def get_spending_trends(
     current_user: dict = Depends(get_current_user),
 ):
     """Monthly spending totals for the last N months."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     start_date = (datetime.now() - timedelta(days=months * 30)).strftime("%Y-%m-%d")
@@ -63,7 +63,7 @@ def get_top_vendors(
     current_user: dict = Depends(get_current_user),
 ):
     """Top vendors by total spend."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     start_date = (datetime.now() - timedelta(days=months * 30)).strftime("%Y-%m-%d")
@@ -93,7 +93,7 @@ def get_anomalies(
     current_user: dict = Depends(get_current_user),
 ):
     """Detect spending anomalies — categories with unusual changes."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Get last 6 months of expenses

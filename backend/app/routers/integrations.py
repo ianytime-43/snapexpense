@@ -16,14 +16,14 @@ class ConnectRequest(BaseModel):
 
 @router.get("/connections")
 def list_connections(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     result = admin.table("integration_connections").select("platform, company_name, connected_at, last_synced_at").eq("user_id", user_id).execute()
     return {"connections": result.data or []}
 
 @router.post("/connect")
 def connect_platform(body: ConnectRequest, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     data = {"user_id": user_id, "platform": body.platform, "access_token": body.access_token, "refresh_token": body.refresh_token, "company_name": body.company_name}
     admin.table("integration_connections").upsert(data, on_conflict="user_id,platform").execute()
@@ -31,7 +31,7 @@ def connect_platform(body: ConnectRequest, current_user: dict = Depends(get_curr
 
 @router.delete("/disconnect/{platform}")
 def disconnect_platform(platform: str, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     admin.table("integration_connections").delete().eq("user_id", user_id).eq("platform", platform).execute()
     admin.table("category_mappings").delete().eq("user_id", user_id).eq("platform", platform).execute()
@@ -39,7 +39,7 @@ def disconnect_platform(platform: str, current_user: dict = Depends(get_current_
 
 @router.get("/mappings/{platform}")
 def get_mappings(platform: str, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     result = admin.table("category_mappings").select("*").eq("user_id", user_id).eq("platform", platform).execute()
     if not result.data:

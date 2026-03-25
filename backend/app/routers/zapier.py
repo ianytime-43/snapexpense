@@ -28,6 +28,6 @@ def list_available_triggers():
 def register_webhook(body: WebhookRegister, current_user: dict = Depends(get_current_user)):
     # Store webhook URL for the user + event type
     # In production, this would fire httpx.post(url, json=payload) when events occur
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     logger.info(f"Webhook registered: user={user_id} event={body.event} url={body.url}")
     return {"ok": True, "event": body.event}

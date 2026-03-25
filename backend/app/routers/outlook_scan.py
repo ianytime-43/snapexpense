@@ -23,7 +23,7 @@ async def scan_outlook(
     current_user: dict = Depends(get_current_user),
 ):
     """Scan Outlook for receipt and invoice emails (metadata only)."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     user_row = (

@@ -89,7 +89,7 @@ def get_tax_summary(
     current_user: dict = Depends(get_current_user),
 ):
     """Tax dashboard summary — ITCs, deductions, by jurisdiction and category."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Default to current quarter/year

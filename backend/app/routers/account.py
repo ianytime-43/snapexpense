@@ -18,7 +18,7 @@ router = APIRouter(prefix="/account", tags=["account"])
 @router.get("/export")
 def export_my_data(current_user: dict = Depends(get_current_user)):
     """Export all user data as a ZIP file containing JSON."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Collect all user data
@@ -78,7 +78,7 @@ def export_my_data(current_user: dict = Depends(get_current_user)):
 @router.delete("/delete")
 def delete_my_account(current_user: dict = Depends(get_current_user)):
     """Permanently delete user account and all associated data."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     try:

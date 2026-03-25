@@ -40,7 +40,7 @@ def list_trips(
     months: int = Query(default=3, ge=1, le=12),
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     from datetime import datetime, timedelta
@@ -63,7 +63,7 @@ def create_trip(
     body: TripCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     trip_data = {
@@ -87,7 +87,7 @@ def update_trip(
     body: TripUpdate,
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     update_data = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -110,7 +110,7 @@ def delete_trip(
     trip_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     admin.table("trips").delete().eq("id", trip_id).eq("user_id", user_id).execute()
     return {"ok": True}
@@ -122,7 +122,7 @@ def get_mileage_summary(
     current_user: dict = Depends(get_current_user),
 ):
     """Get mileage summary with deduction calculation."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     from datetime import datetime

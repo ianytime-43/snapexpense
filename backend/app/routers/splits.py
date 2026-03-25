@@ -25,7 +25,7 @@ def split_expense(
     current_user: dict = Depends(get_current_user),
 ):
     """Split an expense into business and personal portions."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Get original expense

@@ -14,7 +14,7 @@ class SearchRequest(BaseModel):
 
 @router.post("/natural")
 def natural_search(body: SearchRequest, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     from ..modules.intel.nl_search import parse_natural_query

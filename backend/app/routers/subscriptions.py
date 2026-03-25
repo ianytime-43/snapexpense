@@ -29,7 +29,7 @@ def detect_subscriptions(
     current_user: dict = Depends(get_current_user),
 ):
     """Scan expense history and return detected recurring patterns."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     try:
         results = detect_recurring(admin, user_id)
@@ -44,7 +44,7 @@ def list_subscriptions(
     current_user: dict = Depends(get_current_user),
 ):
     """List saved recurring expenses for the current user."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     result = (
         admin.table("recurring_expenses")
@@ -63,7 +63,7 @@ def save_subscription(
     current_user: dict = Depends(get_current_user),
 ):
     """Save a detected subscription to the recurring_expenses table."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Upsert by user_id + merchant_name to avoid duplicates
@@ -111,7 +111,7 @@ def delete_subscription(
     current_user: dict = Depends(get_current_user),
 ):
     """Remove (soft-delete) a saved subscription."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
     # Verify ownership

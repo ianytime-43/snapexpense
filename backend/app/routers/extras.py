@@ -19,14 +19,14 @@ class TemplateCreate(BaseModel):
 
 @router.get("/templates")
 def list_templates(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     result = admin.table("expense_templates").select("*").eq("user_id", user_id).order("use_count", desc=True).execute()
     return {"templates": result.data or []}
 
 @router.post("/templates")
 def create_template(body: TemplateCreate, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     data = {"user_id": user_id, **body.model_dump()}
     result = admin.table("expense_templates").insert(data).execute()
@@ -35,7 +35,7 @@ def create_template(body: TemplateCreate, current_user: dict = Depends(get_curre
 @router.post("/templates/{template_id}/use")
 def use_template(template_id: str, current_user: dict = Depends(get_current_user)):
     """Create an expense from a template."""
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     template = admin.table("expense_templates").select("*").eq("id", template_id).eq("user_id", user_id).single().execute()
     if not template.data:
@@ -55,7 +55,7 @@ def use_template(template_id: str, current_user: dict = Depends(get_current_user
 # --- Warranties ---
 @router.get("/warranties")
 def list_warranties(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     result = admin.table("warranties").select("*").eq("user_id", user_id).order("warranty_expires").execute()
     return {"warranties": result.data or []}
@@ -63,7 +63,7 @@ def list_warranties(current_user: dict = Depends(get_current_user)):
 # --- Alerts ---
 @router.get("/alerts/missing-receipts")
 def missing_receipt_alerts(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     from ..modules.intel.missing_receipt_alerts import get_missing_receipt_summary
     return get_missing_receipt_summary(admin, user_id)
@@ -71,7 +71,7 @@ def missing_receipt_alerts(current_user: dict = Depends(get_current_user)):
 # --- Spend Forecast ---
 @router.get("/forecast")
 def spend_forecast(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user"]["id"]
+    user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
     from datetime import datetime, timedelta
     from collections import defaultdict
