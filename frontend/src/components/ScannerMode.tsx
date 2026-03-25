@@ -108,24 +108,12 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
 
     setBlurScore(score)
 
-    const sharp = score >= 0.55
-
-    if (sharp) {
-      stableFrameCount.current += 1
-
-      if (stableFrameCount.current >= STABLE_FRAMES_REQUIRED) {
-        // Transition through verifying → trigger capture
-        setScanState('verifying')
-        triggerCapture()
-        return
-      } else if (stableFrameCount.current > 5) {
-        setScanState('verifying')
-      } else {
-        setScanState('detected')
-      }
+    // Show blur quality feedback but never auto-capture
+    // User must tap the shutter button to capture
+    if (score >= 0.45) {
+      setScanState('detected')  // green border = image is sharp enough
     } else {
-      stableFrameCount.current = 0
-      setScanState('searching')
+      setScanState('searching') // white border = hold steady
     }
 
     scheduleAnalysis()
@@ -236,11 +224,11 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
   const statusText = (() => {
     switch (scanState) {
       case 'searching':
-        return 'Point at receipt'
+        return 'Position receipt and tap to capture'
       case 'detected':
-        return 'Hold steady…'
+        return 'Looking good — tap to capture'
       case 'verifying':
-        return 'Capturing…'
+        return 'Tap to capture'
       case 'captured':
         return 'Captured!'
     }
