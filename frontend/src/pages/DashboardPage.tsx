@@ -311,27 +311,24 @@ export default function DashboardPage({ session }: Props) {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">SnapExpense</h1>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => navigate('/upload')}
-              className="bg-green-600 text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white rounded-xl px-3 py-2 text-sm font-medium hover:bg-green-700 transition-colors"
             >
-              <span className="hidden sm:inline">+ Add Receipt</span>
-              <span className="sm:hidden">+</span>
+              +
             </button>
 
             {/* Export dropdown */}
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => { setShowExport(!showExport); setExportError(null) }}
-                className="border border-gray-300 text-gray-600 rounded-xl px-3 py-2 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-1"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                aria-label="Export"
+                title="Export"
               >
-                <span className="hidden sm:inline">Export</span>
-                <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <svg className="w-3.5 h-3.5 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
@@ -391,10 +388,10 @@ export default function DashboardPage({ session }: Props) {
               </svg>
             </button>
 
-            {/* Insights */}
+            {/* Insights — hidden on small mobile */}
             <button
               onClick={() => navigate('/insights')}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               aria-label="Insights"
               title="Spending insights"
             >
@@ -403,10 +400,10 @@ export default function DashboardPage({ session }: Props) {
               </svg>
             </button>
 
-            {/* Mileage tracker */}
+            {/* Mileage — hidden on small mobile */}
             <button
               onClick={() => navigate('/mileage')}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               aria-label="Mileage"
               title="Mileage tracker"
             >
@@ -415,10 +412,10 @@ export default function DashboardPage({ session }: Props) {
               </svg>
             </button>
 
-            {/* Subscriptions */}
+            {/* Subscriptions — hidden on small mobile */}
             <button
               onClick={() => navigate('/subscriptions')}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               aria-label="Subscriptions"
               title="Recurring subscriptions"
             >
@@ -427,10 +424,10 @@ export default function DashboardPage({ session }: Props) {
               </svg>
             </button>
 
-            {/* Trips toggle */}
+            {/* Trips toggle — hidden on small mobile */}
             <button
               onClick={() => setGroupByTrip(!groupByTrip)}
-              className={`p-2 rounded-lg transition-colors ${groupByTrip ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`hidden sm:block p-2 rounded-lg transition-colors ${groupByTrip ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
               aria-label="Group by trip"
               title="Group by trip"
             >

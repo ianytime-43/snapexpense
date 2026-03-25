@@ -108,7 +108,7 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
 
     setBlurScore(score)
 
-    const sharp = score >= 0.40
+    const sharp = score >= 0.55
 
     if (sharp) {
       stableFrameCount.current += 1
@@ -294,22 +294,22 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
       {/* Dark overlay with guide box cut-out using ring */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         {/* Top overlay */}
-        <div className="absolute inset-x-0 top-0 h-[20%] bg-black/50" />
+        <div className="absolute inset-x-0 top-0 h-[8%] bg-black/50" />
         {/* Bottom overlay */}
-        <div className="absolute inset-x-0 bottom-0 h-[40%] bg-black/50" />
+        <div className="absolute inset-x-0 bottom-0 h-[15%] bg-black/50" />
         {/* Left overlay */}
-        <div className="absolute left-0 top-[20%] bottom-[40%] w-[7.5%] bg-black/50" />
+        <div className="absolute left-0 top-[8%] bottom-[15%] w-[5%] bg-black/50" />
         {/* Right overlay */}
-        <div className="absolute right-0 top-[20%] bottom-[40%] w-[7.5%] bg-black/50" />
+        <div className="absolute right-0 top-[8%] bottom-[15%] w-[5%] bg-black/50" />
 
-        {/* Guide box border */}
+        {/* Guide box border — tall rectangle for receipts */}
         <div
           className={`absolute border-2 rounded-lg transition-colors duration-200 ${guideBorderColor}`}
           style={{
-            left: '7.5%',
-            right: '7.5%',
-            top: '20%',
-            bottom: '40%',
+            left: '5%',
+            right: '5%',
+            top: '8%',
+            bottom: '15%',
           }}
         />
 
@@ -320,7 +320,7 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
           return (
             <div
               key={corner}
-              className={`absolute w-6 h-6 border-white/80 ${isTop ? 'border-t-2 top-[20%]' : 'border-b-2 bottom-[40%]'} ${isLeft ? 'border-l-2 left-[7.5%] rounded-tl-lg' : 'border-r-2 right-[7.5%] rounded-tr-lg'}`}
+              className={`absolute w-8 h-8 border-white/80 ${isTop ? 'border-t-2 top-[8%]' : 'border-b-2 bottom-[15%]'} ${isLeft ? 'border-l-2 left-[5%]' : 'border-r-2 right-[5%]'}`}
               style={{
                 borderTopLeftRadius: corner === 'tl' ? '6px' : 0,
                 borderTopRightRadius: corner === 'tr' ? '6px' : 0,
