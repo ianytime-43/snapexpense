@@ -12,7 +12,23 @@ def generate_tax_package(admin: Client, user_id: str, year: int) -> BytesIO:
     start = f"{year}-01-01"
     end = f"{year}-12-31"
 
-    expenses = admin.table("expenses").select("*").eq("user_id", user_id).gte("expense_date", start).lte("expense_date", end).neq("expense_tag", "personal").execute()
+    # Fetch ALL user expenses, filter in Python to handle NULLs properly
+    all_expenses = admin.table("expenses").select("*").eq("user_id", user_id).execute()
+    # Include: expenses in date range OR with no date, exclude only explicitly "personal" tagged
+    expenses_data = []
+    for e in (all_expenses.data or []):
+        ed = e.get("expense_date")
+        tag = e.get("expense_tag")
+        # Skip only explicitly personal-tagged expenses
+        if tag == "personal":
+            continue
+        # Include if date is in range, or date is null
+        if ed is None or (ed >= start and ed <= end):
+            expenses_data.append(e)
+
+    class _Result:
+        def __init__(self, data): self.data = data
+    expenses = _Result(expenses_data)
 
     user = admin.table("users").select("full_name, company_name, country, region").eq("id", user_id).maybe_single().execute()
     profile = user.data or {}
