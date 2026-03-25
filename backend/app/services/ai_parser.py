@@ -24,7 +24,7 @@ Return ONLY a valid JSON object with exactly these fields (use null for any miss
   "line_items": [{{"description": string, "quantity": number or null, "unit_price": number or null, "total_price": number or null}}],
   "document_type": one of "receipt", "invoice", "subscription", "payment_confirmation". Receipts show items already paid. Invoices show amounts due. Subscription confirmations are recurring charges. Payment confirmations prove a payment was made.,
   "due_date": if this is an invoice, the due date in "YYYY-MM-DD" format. null for receipts.,
-  "alcohol_items": array of items that are alcoholic beverages (beer, wine, spirits, cocktails). Each item: {{"description": "item name", "amount": number}}. Empty array if no alcohol.,
+  "alcohol_items": array of items that are CLEARLY alcoholic beverages (beer, wine, spirits, cocktails, liquor). Each item: {{"description": "item name", "amount": number}}. Empty array if no alcohol. Do NOT include soft drinks, juice, coffee, tea, water, or any non-alcoholic item. If unsure whether an item is alcoholic, do NOT include it.,
   "alcohol_total": total amount for alcohol items. 0 if no alcohol.
 }}
 
