@@ -48,7 +48,7 @@ def get_quarterly_estimate(
         admin.table("expenses")
         .select("amount_total, tax_deductible_amount, expense_tag")
         .eq("user_id", user_id)
-        .eq("status", "confirmed")
+        # Include all statuses so users see data before confirming
         .execute()
     )
 
@@ -107,8 +107,8 @@ def get_tax_summary(
     else:
         q_end = f"{year}-{q_end_month + 1:02d}-01"
 
-    # Fetch expenses in range
-    expenses = (
+    # Fetch expenses in range (include expenses without dates)
+    expenses_with_date = (
         admin.table("expenses")
         .select("*")
         .eq("user_id", user_id)
@@ -116,6 +116,23 @@ def get_tax_summary(
         .lt("expense_date", q_end)
         .execute()
     )
+    # Also get expenses with no date (recently uploaded, date not yet extracted)
+    expenses_no_date = (
+        admin.table("expenses")
+        .select("*")
+        .eq("user_id", user_id)
+        .is_("expense_date", "null")
+        .execute()
+    )
+    expenses_data = (expenses_with_date.data or []) + (expenses_no_date.data or [])
+    # Deduplicate by id
+    seen = set()
+    deduped = []
+    for e in expenses_data:
+        if e["id"] not in seen:
+            seen.add(e["id"])
+            deduped.append(e)
+    expenses = type('obj', (object,), {'data': deduped})()
 
     data = expenses.data or []
 

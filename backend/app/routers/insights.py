@@ -29,7 +29,6 @@ def get_spending_trends(
         .select("amount_total, expense_date, category, expense_tag, currency")
         .eq("user_id", user_id)
         .gte("expense_date", start_date)
-        .neq("status", "draft")
         .execute()
     )
 
