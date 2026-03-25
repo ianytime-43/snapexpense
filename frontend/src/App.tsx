@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import BottomNav from './components/BottomNav'
 import CookieConsent from './components/CookieConsent'
 import { useDarkMode } from './hooks/useDarkMode'
 import { ToastProvider, useOnlineToast } from './hooks/useToast'
@@ -37,8 +38,12 @@ function Spinner() {
 function AppRoutes({ session }: { session: Session | null }) {
   useOnlineToast()
   useDarkMode()
+  const location = useLocation()
+
+  const HIDE_BOTTOM_NAV = ['/', '/auth', '/privacy', '/terms', '/onboarding', '/upload']
 
   return (
+    <>
     <Routes>
       {/* Public routes — no auth required */}
       <Route path="/" element={session ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
@@ -190,6 +195,8 @@ function AppRoutes({ session }: { session: Session | null }) {
       />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    {session && !HIDE_BOTTOM_NAV.includes(location.pathname) && <BottomNav />}
+    </>
   )
 }
 

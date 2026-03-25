@@ -120,7 +120,7 @@ export default function InsightsPage({ session }: Props) {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-20 space-y-4">
 
         {/* Monthly Trend */}
         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">

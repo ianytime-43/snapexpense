@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import {
   deleteMyAccount,
   disconnectCalendar,
@@ -364,7 +365,7 @@ export default function SettingsPage({ session }: Props) {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-20 space-y-4">
 
         {/* Connected Accounts card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -884,6 +885,20 @@ export default function SettingsPage({ session }: Props) {
               Delete my account permanently
             </button>
           </div>
+        </div>
+
+        {/* Sign out */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Account</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Signed in as <span className="font-medium text-gray-700 dark:text-gray-300">{session.user.email}</span>
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
 
         {/* Footer links */}

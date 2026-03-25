@@ -6,7 +6,6 @@ import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
 import SwipeableCard from '../components/SwipeableCard'
 import UndoToast from '../components/UndoToast'
 import { confirmExpense, deleteExpense, getExpenses, getGroups, naturalSearch } from '../lib/api'
-import { supabase } from '../lib/supabase'
 import type { Expense, ExpenseGroup } from '../types'
 
 interface Props {
@@ -306,24 +305,17 @@ export default function DashboardPage({ session }: Props) {
   })).filter((g) => g.items.length > 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+    <div className="min-h-screen bg-cream-50 dark:bg-forest-900">
+      <header className="bg-white dark:bg-forest-800 border-b border-cream-300 dark:border-forest-600 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white">SnapExpense</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-forest-100">SnapExpense</h1>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => navigate('/upload')}
-              className="bg-green-600 text-white rounded-xl px-3 py-2 text-sm font-medium hover:bg-green-700 transition-colors"
-            >
-              +
-            </button>
-
             {/* Export dropdown */}
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => { setShowExport(!showExport); setExportError(null) }}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                className="p-2 text-gray-400 dark:text-forest-300 hover:text-gray-600 dark:hover:text-forest-100 transition-colors"
                 aria-label="Export"
                 title="Export"
               >
@@ -376,100 +368,21 @@ export default function DashboardPage({ session }: Props) {
               )}
             </div>
 
-            {/* Tax dashboard */}
-            <button
-              onClick={() => navigate('/tax')}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Tax dashboard"
-              title="Tax dashboard"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </button>
-
-            {/* Insights — hidden on small mobile */}
-            <button
-              onClick={() => navigate('/insights')}
-              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Insights"
-              title="Spending insights"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </button>
-
-            {/* Mileage — hidden on small mobile */}
-            <button
-              onClick={() => navigate('/mileage')}
-              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Mileage"
-              title="Mileage tracker"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </button>
-
-            {/* Subscriptions — hidden on small mobile */}
-            <button
-              onClick={() => navigate('/subscriptions')}
-              className="hidden sm:block p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Subscriptions"
-              title="Recurring subscriptions"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-
-            {/* Trips toggle — hidden on small mobile */}
-            <button
-              onClick={() => setGroupByTrip(!groupByTrip)}
-              className={`hidden sm:block p-2 rounded-lg transition-colors ${groupByTrip ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
-              aria-label="Group by trip"
-              title="Group by trip"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </button>
-
-            {/* Bulk select toggle */}
+            {/* Bulk select */}
             <button
               onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()) }}
-              className={`p-2 rounded-lg transition-colors ${bulkMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
-              aria-label="Bulk select"
-            >
+              className={`p-2 rounded-lg transition-colors ${bulkMode ? 'bg-green-100 dark:bg-forest-500 text-green-700 dark:text-forest-100' : 'text-gray-400 dark:text-forest-300 hover:text-gray-600'}`}
+              aria-label="Bulk select">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
-            </button>
-
-            <button
-              onClick={() => navigate('/settings')}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Settings"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="text-gray-400 text-sm hover:text-gray-600"
-              aria-label="Sign out"
-            >
-              Sign out
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-20">
         {/* Stats bar */}
         {!loading && expenses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
