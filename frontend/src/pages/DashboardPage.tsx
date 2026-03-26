@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import BulkActions from '../components/BulkActions'
+import ScanStreak from '../components/ScanStreak'
 import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
 import SwipeableCard from '../components/SwipeableCard'
 import UndoToast from '../components/UndoToast'
@@ -417,6 +418,11 @@ export default function DashboardPage({ session }: Props) {
               </p>
             </button>
           </div>
+        )}
+
+        {/* Scan streak */}
+        {!loading && expenses.length > 0 && (
+          <ScanStreak expenses={expenses} />
         )}
 
         {/* Natural language search */}

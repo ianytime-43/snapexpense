@@ -92,3 +92,17 @@ def spend_forecast(current_user: dict = Depends(get_current_user)):
         forecasts.append({"category": cat, "monthly_avg": round(avg, 2), "quarterly_estimate": round(quarterly, 2)})
 
     return {"forecasts": sorted(forecasts, key=lambda f: f["monthly_avg"], reverse=True)}
+
+
+# --- Reimbursement Format Templates ---
+@router.get("/reimbursement-templates")
+def list_reimbursement_templates(current_user: dict = Depends(get_current_user)):
+    """List available export format templates."""
+    templates = [
+        {"id": "generic-excel", "name": "Generic Excel", "description": "Standard expense report spreadsheet"},
+        {"id": "sap-concur", "name": "SAP Concur Format", "description": "Compatible with SAP Concur import"},
+        {"id": "cra-t2125", "name": "CRA T2125", "description": "Canadian self-employment expense summary"},
+        {"id": "irs-schedule-c", "name": "IRS Schedule C", "description": "US self-employment expense summary"},
+        {"id": "csv-simple", "name": "Simple CSV", "description": "Basic CSV with all expense fields"},
+    ]
+    return {"templates": templates}

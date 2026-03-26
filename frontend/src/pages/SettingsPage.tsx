@@ -959,6 +959,147 @@ export default function SettingsPage({ session }: Props) {
           </div>
         </div>
 
+        {/* Security / Biometric card */}
+        {biometricSupported && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Security</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Require biometric authentication (Face ID, fingerprint) when opening SnapExpense.
+            </p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Biometric lock</span>
+              <button
+                onClick={toggleBiometric}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  biometricEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
+                }`}
+                aria-label="Toggle biometric lock"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    biometricEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Auto-Submit Reports card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Auto-Submit Reports</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Automatically generate and email expense reports.</p>
+          <div className="space-y-3">
+            <select
+              value={autoSubmitFreq}
+              onChange={(e) => handleAutoSubmitChange(e.target.value)}
+              disabled={autoSubmitSaving}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="never">Off</option>
+              <option value="weekly">Weekly (every Friday)</option>
+              <option value="monthly">Monthly (last day)</option>
+            </select>
+            {autoSubmitFreq !== 'never' && (
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={autoSubmitEmail}
+                  onChange={(e) => setAutoSubmitEmail(e.target.value)}
+                  placeholder="Send reports to email..."
+                  className="flex-1 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                  onClick={handleAutoSubmitEmailSave}
+                  disabled={autoSubmitSaving || !autoSubmitEmail.trim()}
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {autoSubmitSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Report Formats card */}
+        {reportTemplates.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Report Formats</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Supported export formats for reimbursement and tax reporting.
+            </p>
+            <div className="space-y-2">
+              {reportTemplates.map((tpl) => (
+                <div key={tpl.id} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{tpl.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{tpl.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Share with Partner card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Share with Partner
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Give your spouse or business partner read-only access to your expenses and receipts — no account needed.
+          </p>
+
+          <form onSubmit={handlePartnerInvite} className="flex gap-2 mb-4">
+            <input
+              type="email"
+              value={partnerEmail}
+              onChange={(e) => setPartnerEmail(e.target.value)}
+              placeholder="partner@example.com"
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="submit"
+              disabled={partnerWorking || !partnerEmail.trim()}
+              className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {partnerWorking ? 'Inviting…' : 'Invite'}
+            </button>
+          </form>
+
+          {partnerError && (
+            <p className="text-sm text-red-600 mb-3">{partnerError}</p>
+          )}
+
+          {accountantLoading ? (
+            <div className="h-8 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse" />
+          ) : accountantList.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider mb-2">People with access</p>
+              {accountantList.map((a) => (
+                <div key={a.accountant_email} className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.accountant_email}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Granted {new Date(a.granted_at).toLocaleDateString()}
+                      {a.last_accessed_at ? ` · Last viewed ${new Date(a.last_accessed_at).toLocaleDateString()}` : ' · Not yet viewed'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAccountantRevoke(a.accountant_email)}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 dark:text-gray-500">No one has access yet.</p>
+          )}
+        </div>
+
         {/* Share with Accountant card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
