@@ -1,0 +1,83 @@
+{
+  "app_name": "SnapExpense",
+  "nav": {
+    "home": "Inicio",
+    "tax": "Impuestos",
+    "insights": "Análisis",
+    "settings": "Ajustes"
+  },
+  "dashboard": {
+    "this_month": "Este mes",
+    "pending": "Pendiente",
+    "confirmed": "Confirmado",
+    "expenses": "gastos",
+    "to_review": "por revisar",
+    "ready_to_submit": "listos para enviar",
+    "add_receipt": "Agregar recibo",
+    "search_placeholder": "Buscar: \"uber en enero\", \"comidas más de $50\"...",
+    "no_expenses": "Sin gastos aún",
+    "welcome": "Bienvenido a SnapExpense",
+    "welcome_desc": "Captura y rastrea tus gastos de negocio en segundos"
+  },
+  "expense": {
+    "confirm": "Confirmar gasto",
+    "discard": "Descartar",
+    "split": "Dividir gasto",
+    "business": "Negocio",
+    "work": "Trabajo",
+    "personal": "Personal",
+    "category": "Categoría",
+    "merchant": "Comercio",
+    "date": "Fecha",
+    "total": "Total",
+    "tax": "Impuesto",
+    "tip": "Propina"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "appearance": "Apariencia",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema",
+    "language": "Idioma",
+    "notifications": "Notificaciones",
+    "push": "Notificaciones push",
+    "email": "Notificaciones por correo",
+    "sms": "Notificaciones SMS",
+    "your_data": "Tus datos",
+    "export_data": "Descargar todos mis datos (ZIP)",
+    "delete_account": "Eliminar mi cuenta permanentemente",
+    "sign_out": "Cerrar sesión"
+  },
+  "scanner": {
+    "position_receipt": "Coloca el recibo y toca para capturar",
+    "looking_good": "Se ve bien — toca para capturar",
+    "tap_to_capture": "Toca para capturar",
+    "captured": "¡Capturado!",
+    "done": "Listo",
+    "cancel": "Cancelar",
+    "scanned": "escaneados"
+  },
+  "tax": {
+    "title": "Panel de impuestos",
+    "savings": "Ahorro fiscal",
+    "itc_recovered": "en créditos fiscales recuperados",
+    "deductions_tracked": "en deducciones rastreadas",
+    "by_jurisdiction": "Por jurisdicción",
+    "category_spend": "Gasto por categoría",
+    "deduction_summary": "Resumen de deducciones",
+    "no_business_expenses": "Sin gastos de negocio"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Algo salió mal",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "confirm": "Confirmar",
+    "search": "Buscar"
+  }
+}

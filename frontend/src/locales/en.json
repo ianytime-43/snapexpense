@@ -1,0 +1,83 @@
+{
+  "app_name": "SnapExpense",
+  "nav": {
+    "home": "Home",
+    "tax": "Tax",
+    "insights": "Insights",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "this_month": "This Month",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "expenses": "expenses",
+    "to_review": "to review",
+    "ready_to_submit": "ready to submit",
+    "add_receipt": "Add Receipt",
+    "search_placeholder": "Search: \"uber rides in january\", \"meals over $50\"...",
+    "no_expenses": "No expenses yet",
+    "welcome": "Welcome to SnapExpense",
+    "welcome_desc": "Capture and track your business expenses in seconds"
+  },
+  "expense": {
+    "confirm": "Confirm expense",
+    "discard": "Discard",
+    "split": "Split expense",
+    "business": "Business",
+    "work": "Work",
+    "personal": "Personal",
+    "category": "Category",
+    "merchant": "Merchant",
+    "date": "Date",
+    "total": "Total",
+    "tax": "Tax",
+    "tip": "Tip"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "language": "Language",
+    "notifications": "Notifications",
+    "push": "Push notifications",
+    "email": "Email notifications",
+    "sms": "SMS notifications",
+    "your_data": "Your Data",
+    "export_data": "Download all my data (ZIP)",
+    "delete_account": "Delete my account permanently",
+    "sign_out": "Sign out"
+  },
+  "scanner": {
+    "position_receipt": "Position receipt and tap to capture",
+    "looking_good": "Looking good — tap to capture",
+    "tap_to_capture": "Tap to capture",
+    "captured": "Captured!",
+    "done": "Done",
+    "cancel": "Cancel",
+    "scanned": "scanned"
+  },
+  "tax": {
+    "title": "Tax Dashboard",
+    "savings": "Tax Savings",
+    "itc_recovered": "in ITCs recovered",
+    "deductions_tracked": "in deductions tracked",
+    "by_jurisdiction": "By Jurisdiction",
+    "category_spend": "Category Spend",
+    "deduction_summary": "Deduction Summary",
+    "no_business_expenses": "No business expenses"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "confirm": "Confirm",
+    "search": "Search"
+  }
+}

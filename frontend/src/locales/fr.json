@@ -1,0 +1,83 @@
+{
+  "app_name": "SnapExpense",
+  "nav": {
+    "home": "Accueil",
+    "tax": "Impôts",
+    "insights": "Aperçus",
+    "settings": "Paramètres"
+  },
+  "dashboard": {
+    "this_month": "Ce mois-ci",
+    "pending": "En attente",
+    "confirmed": "Confirmé",
+    "expenses": "dépenses",
+    "to_review": "à examiner",
+    "ready_to_submit": "prêtes à soumettre",
+    "add_receipt": "Ajouter un reçu",
+    "search_placeholder": "Rechercher : \"uber en janvier\", \"repas plus de 50$\"...",
+    "no_expenses": "Aucune dépense",
+    "welcome": "Bienvenue sur SnapExpense",
+    "welcome_desc": "Capturez et suivez vos dépenses d'affaires en quelques secondes"
+  },
+  "expense": {
+    "confirm": "Confirmer la dépense",
+    "discard": "Supprimer",
+    "split": "Diviser la dépense",
+    "business": "Affaires",
+    "work": "Travail",
+    "personal": "Personnel",
+    "category": "Catégorie",
+    "merchant": "Commerçant",
+    "date": "Date",
+    "total": "Total",
+    "tax": "Taxe",
+    "tip": "Pourboire"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "appearance": "Apparence",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "language": "Langue",
+    "notifications": "Notifications",
+    "push": "Notifications push",
+    "email": "Notifications par courriel",
+    "sms": "Notifications SMS",
+    "your_data": "Vos données",
+    "export_data": "Télécharger toutes mes données (ZIP)",
+    "delete_account": "Supprimer mon compte définitivement",
+    "sign_out": "Déconnexion"
+  },
+  "scanner": {
+    "position_receipt": "Positionnez le reçu et appuyez pour capturer",
+    "looking_good": "Parfait — appuyez pour capturer",
+    "tap_to_capture": "Appuyez pour capturer",
+    "captured": "Capturé !",
+    "done": "Terminé",
+    "cancel": "Annuler",
+    "scanned": "numérisés"
+  },
+  "tax": {
+    "title": "Tableau de bord fiscal",
+    "savings": "Économies d'impôt",
+    "itc_recovered": "en CTI récupérés",
+    "deductions_tracked": "en déductions suivies",
+    "by_jurisdiction": "Par juridiction",
+    "category_spend": "Dépenses par catégorie",
+    "deduction_summary": "Résumé des déductions",
+    "no_business_expenses": "Aucune dépense d'affaires"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur s'est produite",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "confirm": "Confirmer",
+    "search": "Rechercher"
+  }
+}
