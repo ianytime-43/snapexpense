@@ -30,6 +30,7 @@ const CATEGORIES = [
   'Software',
   'Marketing',
   'Professional Services',
+  'Investment Fees',
   'Other',
 ]
 
@@ -495,6 +496,13 @@ export default function ExpensePage({ session }: Props) {
           </div>
         )}
 
+        {/* Expense policy alert — meals over $75 */}
+        {expense.amount_total && expense.amount_total > 75 && expense.category === 'Meals & Entertainment' && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300">
+            Meal over $75 — some employer policies require manager approval for meals above this amount.
+          </div>
+        )}
+
         {/* Alcohol notice */}
         {expense.alcohol_total != null && expense.alcohol_total > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
@@ -663,6 +671,11 @@ export default function ExpensePage({ session }: Props) {
                 )}
               </Row>
             )}
+            {expense.amount_tip != null && expense.amount_tip > 0 && (
+              <p className="text-xs text-gray-400 dark:text-forest-300 mt-1 pb-2">
+                Tips on business meals are {expense.expense_tag === 'personal' ? 'not deductible' : '50% deductible (CRA/IRS)'}.
+              </p>
+            )}
             <Row
               label="Payment"
               copyValue={
@@ -778,6 +791,11 @@ export default function ExpensePage({ session }: Props) {
                 </span>
               )}
             </Row>
+            {expense.category && !['Meals & Entertainment', 'Travel', 'Transportation', 'Software'].includes(expense.category) && expense.expense_date && (
+              <p className="text-xs text-gray-400 dark:text-forest-300 py-2">
+                Check store return policy — most retailers allow 30-90 day returns.
+              </p>
+            )}
             {expense.attendees && expense.attendees.length > 0 && (
               <Row
                 label="Attendees"

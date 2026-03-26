@@ -21,6 +21,7 @@ IRS_CATEGORIES = {
     "Professional Services": {"line": "17", "deduction_pct": 1.0, "label": "Legal and professional services"},
     "Supplies": {"line": "22", "deduction_pct": 1.0, "label": "Supplies"},
     "Other": {"line": "27b", "deduction_pct": 1.0, "label": "Other expenses"},
+    "Investment Fees": {"line": "27b", "deduction_pct": 1.0, "label": "Other expenses"},
 }
 
 def get_irs_category(category: str) -> dict:

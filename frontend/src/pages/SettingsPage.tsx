@@ -1,6 +1,8 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
 import { supabase } from '../lib/supabase'
 import {
   deleteMyAccount,
@@ -24,6 +26,7 @@ import {
 } from '../lib/api'
 import type { AccountantAccess, IntegrationConnection } from '../lib/api'
 import { useDarkMode } from '../hooks/useDarkMode'
+import { useBiometric } from '../hooks/useBiometric'
 import type { EmailScanResult, UserProfile } from '../types'
 
 interface Props {
@@ -52,6 +55,7 @@ export default function SettingsPage({ session }: Props) {
   const [outlookWorking, setOutlookWorking] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [reminderSaving, setReminderSaving] = useState(false)
+  const [notifSaving, setNotifSaving] = useState(false)
   const [scanResults, setScanResults] = useState<EmailScanResult[]>([])
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -67,7 +71,19 @@ export default function SettingsPage({ session }: Props) {
   const [accountantError, setAccountantError] = useState<string | null>(null)
   const [taxPackageYear, setTaxPackageYear] = useState(new Date().getFullYear())
   const [taxPackageWorking, setTaxPackageWorking] = useState(false)
+  // Partner access (reuses accountant_access table)
+  const [partnerEmail, setPartnerEmail] = useState('')
+  const [partnerWorking, setPartnerWorking] = useState(false)
+  const [partnerError, setPartnerError] = useState<string | null>(null)
+  // Auto-submit
+  const [autoSubmitFreq, setAutoSubmitFreq] = useState<string>('never')
+  const [autoSubmitEmail, setAutoSubmitEmail] = useState('')
+  const [autoSubmitSaving, setAutoSubmitSaving] = useState(false)
+  // Report templates
+  const [reportTemplates, setReportTemplates] = useState<Array<{id: string; name: string; description: string}>>([])
   const { theme, setTheme } = useDarkMode()
+  const { isEnabled: biometricEnabled, isSupported: biometricSupported, toggle: toggleBiometric } = useBiometric()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -87,6 +103,24 @@ export default function SettingsPage({ session }: Props) {
       .then(setAccountantList)
       .catch(() => {})
       .finally(() => setAccountantLoading(false))
+  }, [session])
+
+  // Load auto-submit settings from profile
+  useEffect(() => {
+    if (userProfile) {
+      setAutoSubmitFreq((userProfile as UserProfile & { auto_submit_frequency?: string }).auto_submit_frequency ?? 'never')
+      setAutoSubmitEmail((userProfile as UserProfile & { auto_submit_email?: string }).auto_submit_email ?? '')
+    }
+  }, [userProfile])
+
+  // Load report templates
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/reimbursement-templates`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.templates) setReportTemplates(data.templates) })
+      .catch(() => {})
   }, [session])
 
   useEffect(() => {
@@ -204,6 +238,20 @@ export default function SettingsPage({ session }: Props) {
     }
   }
 
+  const handleNotifToggle = async (field: 'notification_push' | 'notification_email' | 'notification_sms') => {
+    if (!userProfile) return
+    const newValue = !userProfile[field]
+    setNotifSaving(true)
+    try {
+      const updated = await updateMe({ [field]: newValue }, session.access_token)
+      setUserProfile(prev => prev ? { ...prev, [field]: updated[field] } : prev)
+    } catch {
+      // ignore
+    } finally {
+      setNotifSaving(false)
+    }
+  }
+
   const handleEmailScan = async (source: 'gmail' | 'outlook', months: number) => {
     if (!confirm(
       'SnapExpense will search your inbox for:\n\n' +
@@ -299,6 +347,48 @@ export default function SettingsPage({ session }: Props) {
       alert('Download failed. Please try again.')
     } finally {
       setTaxPackageWorking(false)
+    }
+  }
+
+  const handlePartnerInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!partnerEmail.trim()) return
+    setPartnerWorking(true)
+    setPartnerError(null)
+    try {
+      const row = await inviteAccountant(session.access_token, partnerEmail.trim())
+      setAccountantList((prev) => {
+        const filtered = prev.filter((a) => a.accountant_email !== row.accountant_email)
+        return [row, ...filtered]
+      })
+      setPartnerEmail('')
+    } catch (err) {
+      setPartnerError(err instanceof Error ? err.message : 'Invite failed')
+    } finally {
+      setPartnerWorking(false)
+    }
+  }
+
+  const handleAutoSubmitChange = async (freq: string) => {
+    setAutoSubmitFreq(freq)
+    setAutoSubmitSaving(true)
+    try {
+      await updateMe({ auto_submit_frequency: freq }, session.access_token)
+    } catch {
+      // ignore
+    } finally {
+      setAutoSubmitSaving(false)
+    }
+  }
+
+  const handleAutoSubmitEmailSave = async () => {
+    setAutoSubmitSaving(true)
+    try {
+      await updateMe({ auto_submit_email: autoSubmitEmail }, session.access_token)
+    } catch {
+      // ignore
+    } finally {
+      setAutoSubmitSaving(false)
     }
   }
 
@@ -774,6 +864,51 @@ export default function SettingsPage({ session }: Props) {
           )}
         </div>
 
+        {/* Notifications card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Notifications
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Choose how you want to be notified about expenses and updates.
+          </p>
+          {userProfile ? (
+            <div className="space-y-3">
+              {(
+                [
+                  { field: 'notification_push' as const, label: 'Push notifications' },
+                  { field: 'notification_email' as const, label: 'Email notifications' },
+                  { field: 'notification_sms' as const, label: 'SMS notifications' },
+                ]
+              ).map(({ field, label }) => (
+                <div key={field} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                  <button
+                    onClick={() => handleNotifToggle(field)}
+                    disabled={notifSaving}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      userProfile[field] ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
+                    }`}
+                    aria-label={`Toggle ${label}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        userProfile[field] ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-8 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Theme card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
@@ -783,17 +918,42 @@ export default function SettingsPage({ session }: Props) {
             Choose your preferred theme
           </p>
           <div className="flex gap-2">
-            {(['light', 'dark', 'system'] as const).map((t) => (
+            {(['light', 'dark', 'system'] as const).map((themeOption) => (
               <button
-                key={t}
-                onClick={() => setTheme(t)}
+                key={themeOption}
+                onClick={() => setTheme(themeOption)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  theme === t
+                  theme === themeOption
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System'}
+                {themeOption === 'light' ? 'Light' : themeOption === 'dark' ? 'Dark' : 'System'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Language card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">{t('settings.language')}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose your preferred language</p>
+          <div className="flex gap-2">
+            {[
+              { code: 'en', label: 'English' },
+              { code: 'fr', label: 'Français' },
+              { code: 'es', label: 'Español' },
+            ].map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => i18n.changeLanguage(lang.code)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  i18n.language === lang.code
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                {lang.label}
               </button>
             ))}
           </div>
@@ -931,6 +1091,14 @@ export default function SettingsPage({ session }: Props) {
             <Link to="/terms" className="hover:text-gray-600 hover:underline">Terms of Service</Link>
           </div>
         </div>
+
+        {session.user.email === 'thomastom92@gmail.com' && (
+          <div className="text-center py-2">
+            <button onClick={() => navigate('/admin')} className="text-xs text-gray-400 dark:text-forest-300 hover:text-green-600">
+              Admin Panel
+            </button>
+          </div>
+        )}
 
       </main>
     </div>

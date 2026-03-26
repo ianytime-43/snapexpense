@@ -650,3 +650,42 @@ export async function registerZapierWebhook(event: string, url: string, token: s
     body: JSON.stringify({ event, url }),
   })
 }
+
+// -- Admin --------------------------------------------------------------------
+
+export async function adminHealth(token: string) {
+  const res = await fetch(`${API_BASE}/admin/health`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminTestEndpoints(token: string) {
+  const res = await fetch(`${API_BASE}/admin/test-endpoints`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminListExpenses(token: string) {
+  const res = await fetch(`${API_BASE}/admin/expenses`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminReprocessAll(token: string) {
+  const res = await fetch(`${API_BASE}/admin/reprocess-all`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminReprocessOne(token: string, expenseId: string) {
+  const res = await fetch(`${API_BASE}/admin/reprocess`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ expense_id: expenseId }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminUpdateExpense(token: string, expenseId: string, updates: Record<string, unknown>) {
+  const res = await fetch(`${API_BASE}/admin/update-expense`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ expense_id: expenseId, updates }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}

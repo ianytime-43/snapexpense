@@ -20,6 +20,7 @@ CRA_CATEGORIES = {
     "Marketing": {"line": "8521", "deduction_pct": 1.0, "label": "Advertising"},
     "Professional Services": {"line": "8860", "deduction_pct": 1.0, "label": "Professional fees"},
     "Other": {"line": "9270", "deduction_pct": 1.0, "label": "Other expenses"},
+    "Investment Fees": {"line": "9270", "deduction_pct": 1.0, "label": "Other expenses"},
 }
 
 def get_cra_category(category: str) -> dict:

@@ -82,6 +82,41 @@ def get_quarterly_estimate(
     return result
 
 
+@router.get("/itc-report")
+def get_itc_report(year: int = Query(default=None), current_user: dict = Depends(get_current_user)):
+    """Export ITC summary by jurisdiction as JSON."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+    if not year:
+        year = datetime.now().year
+
+    try:
+        all_expenses = admin.table("expenses").select("*").eq("user_id", user_id).execute()
+        # Filter in Python
+        expenses = [e for e in (all_expenses.data or [])
+                    if e.get("expense_tag") != "personal"
+                    and (not e.get("expense_date") or e["expense_date"][:4] == str(year))]
+
+        by_jurisdiction = {}
+        for e in expenses:
+            j = e.get("location_jurisdiction") or "Unknown"
+            if j not in by_jurisdiction:
+                by_jurisdiction[j] = {"tax_paid": 0, "itc_claimable": 0, "expense_count": 0, "total_amount": 0}
+            by_jurisdiction[j]["tax_paid"] += float(e.get("amount_tax") or 0)
+            by_jurisdiction[j]["itc_claimable"] += float(e.get("itc_claimable") or 0)
+            by_jurisdiction[j]["expense_count"] += 1
+            by_jurisdiction[j]["total_amount"] += float(e.get("amount_total") or 0)
+
+        return {
+            "year": year,
+            "jurisdictions": [{**{"jurisdiction": k}, **{kk: round(vv, 2) for kk, vv in v.items()}} for k, v in sorted(by_jurisdiction.items())],
+            "total_itc": round(sum(v["itc_claimable"] for v in by_jurisdiction.values()), 2),
+            "total_tax_paid": round(sum(v["tax_paid"] for v in by_jurisdiction.values()), 2),
+        }
+    except Exception as e:
+        return {"error": str(e), "jurisdictions": [], "total_itc": 0}
+
+
 @router.get("/summary")
 def get_tax_summary(
     quarter: int = Query(default=None, ge=1, le=4),

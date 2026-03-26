@@ -300,6 +300,13 @@ export default function HomeOfficePage({ session: _session }: Props) {
           </div>
         </SectionCard>
 
+        {/* Utility expense tip */}
+        <div className="mt-4 p-3 bg-gray-50 dark:bg-forest-700 rounded-xl">
+          <p className="text-xs text-gray-500 dark:text-forest-300 mb-2">
+            Tip: Check your expense history for recurring utility payments. Common home office expenses include internet, hydro/electric, gas/heating, and home insurance.
+          </p>
+        </div>
+
         {/* Canada result */}
         {country === 'CA' && caResult && (
           <SectionCard title="Your Deduction">
