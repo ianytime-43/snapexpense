@@ -29,7 +29,7 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 CALENDAR_SCOPE = " ".join([
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/gmail.metadata",
+    "https://www.googleapis.com/auth/gmail.readonly",
 ])
 
 
