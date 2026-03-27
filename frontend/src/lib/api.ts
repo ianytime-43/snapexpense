@@ -705,3 +705,16 @@ export async function adminUpdateExpense(token: string, expenseId: string, updat
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
+export async function adminFindDuplicates(token: string) {
+  const res = await fetch(`${API_BASE}/admin/duplicates`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+export async function adminDeleteDuplicates(token: string, expenseIds: string[]) {
+  const res = await fetch(`${API_BASE}/admin/delete-duplicates`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ expense_ids: expenseIds }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}

@@ -236,6 +236,109 @@ def admin_reprocess_all(current_user: dict = Depends(_require_admin)):
         raise HTTPException(500, str(e))
 
 
+@router.get("/duplicates")
+def admin_find_duplicates(current_user: dict = Depends(_require_admin)):
+    """Find duplicate expenses — same amount + similar merchant + close dates."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+
+    try:
+        all_expenses = admin.table("expenses").select(
+            "id, merchant_name, amount_total, expense_date, status, category, notes, created_at"
+        ).eq("user_id", user_id).order("expense_date").execute()
+
+        expenses = all_expenses.data or []
+        duplicates = []
+        seen = set()
+
+        for i, e1 in enumerate(expenses):
+            if e1["id"] in seen:
+                continue
+            group = [e1]
+            for e2 in expenses[i + 1:]:
+                if e2["id"] in seen:
+                    continue
+                # Same amount
+                a1 = float(e1.get("amount_total") or 0)
+                a2 = float(e2.get("amount_total") or 0)
+                if a1 == 0 or abs(a1 - a2) > 0.01:
+                    continue
+                # Similar merchant
+                m1 = (e1.get("merchant_name") or "").upper()[:10]
+                m2 = (e2.get("merchant_name") or "").upper()[:10]
+                if m1 and m2 and m1 != m2:
+                    continue
+                # Close dates (within 3 days)
+                d1 = e1.get("expense_date") or ""
+                d2 = e2.get("expense_date") or ""
+                if d1 and d2:
+                    from datetime import datetime, timedelta
+                    try:
+                        dt1 = datetime.strptime(d1, "%Y-%m-%d")
+                        dt2 = datetime.strptime(d2, "%Y-%m-%d")
+                        if abs((dt1 - dt2).days) > 3:
+                            continue
+                    except ValueError:
+                        pass
+                group.append(e2)
+                seen.add(e2["id"])
+
+            if len(group) > 1:
+                seen.add(e1["id"])
+                duplicates.append({
+                    "merchant": e1.get("merchant_name"),
+                    "amount": float(e1.get("amount_total") or 0),
+                    "date": e1.get("expense_date"),
+                    "count": len(group),
+                    "expenses": [{"id": e["id"], "merchant_name": e.get("merchant_name"), "amount_total": e.get("amount_total"), "expense_date": e.get("expense_date"), "status": e.get("status"), "created_at": e.get("created_at")} for e in group],
+                })
+
+        return {"duplicate_groups": duplicates, "total_groups": len(duplicates)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+class DeleteDuplicatesRequest(BaseModel):
+    expense_ids: list[str]
+
+
+@router.post("/delete-duplicates")
+def admin_delete_duplicates(body: DeleteDuplicatesRequest, current_user: dict = Depends(_require_admin)):
+    """Delete specific expenses by ID (for cleaning up duplicates)."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+
+    deleted = 0
+    errors = 0
+    for eid in body.expense_ids:
+        try:
+            # Verify ownership
+            check = admin.table("expenses").select("id").eq("id", eid).eq("user_id", user_id).execute()
+            if not check.data:
+                errors += 1
+                continue
+            # Delete related records first
+            try:
+                admin.table("receipts").delete().eq("expense_id", eid).execute()
+            except Exception:
+                pass
+            try:
+                admin.table("attendees").delete().eq("expense_id", eid).execute()
+            except Exception:
+                pass
+            try:
+                admin.table("expense_line_items").delete().eq("expense_id", eid).execute()
+            except Exception:
+                pass
+            # Delete expense
+            admin.table("expenses").delete().eq("id", eid).execute()
+            deleted += 1
+        except Exception:
+            errors += 1
+
+    return {"deleted": deleted, "errors": errors}
+
+
 @router.get("/test-endpoints")
 def admin_test_endpoints(current_user: dict = Depends(_require_admin)):
     """Quick health check on all major endpoint groups."""
