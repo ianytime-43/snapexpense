@@ -206,6 +206,22 @@ export async function scanGmail(token: string, months: number): Promise<EmailSca
   return data.results
 }
 
+export async function importGmailReceipt(
+  token: string,
+  emailId: string,
+  subject: string,
+  sender: string,
+  date: string,
+): Promise<{ status: string; expense_id: string | null }> {
+  const res = await fetch(`${API_BASE}/gmail/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ email_id: emailId, subject, sender, date }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 // ── Account ──────────────────────────────────────────────────────────────────
 
 export async function exportMyData(token: string): Promise<Blob> {

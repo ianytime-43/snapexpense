@@ -20,6 +20,7 @@ import {
   getOutlookStatus,
   inviteAccountant,
   revokeAccountant,
+  importGmailReceipt,
   scanGmail,
   scanOutlook,
   updateMe,
@@ -59,6 +60,8 @@ export default function SettingsPage({ session }: Props) {
   const [scanResults, setScanResults] = useState<EmailScanResult[]>([])
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  const [importedIds, setImportedIds] = useState<Set<string>>(new Set())
+  const [importingId, setImportingId] = useState<string | null>(null)
   const [scanSource, setScanSource] = useState<'gmail' | 'outlook' | null>(null)
   const [showForwarding, setShowForwarding] = useState(false)
   const [integrationConnections, setIntegrationConnections] = useState<IntegrationConnection[]>([])
@@ -694,19 +697,39 @@ export default function SettingsPage({ session }: Props) {
               </p>
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {scanResults.map((r) => (
-                  <div key={r.email_id} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
+                  <div key={r.email_id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 dark:text-white truncate">{r.subject}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{r.sender}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                        {r.sender} · {r.date ? new Date(r.date).toLocaleDateString() : ''}
+                      </p>
                     </div>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                      {r.date ? new Date(r.date).toLocaleDateString() : ''}
-                    </span>
+                    {importedIds.has(r.email_id) ? (
+                      <span className="text-xs text-green-600 font-medium shrink-0">Imported</span>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setImportingId(r.email_id)
+                          try {
+                            await importGmailReceipt(session.access_token, r.email_id, r.subject, r.sender, r.date)
+                            setImportedIds(prev => new Set(prev).add(r.email_id))
+                          } catch {
+                            alert('Import failed')
+                          } finally {
+                            setImportingId(null)
+                          }
+                        }}
+                        disabled={importingId === r.email_id}
+                        className="shrink-0 px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {importingId === r.email_id ? '...' : 'Import'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                Forward these emails to your SnapExpense address below to import them.
+                Tap Import to create an expense from each email. Imported expenses appear on your Dashboard.
               </p>
             </div>
           )}
