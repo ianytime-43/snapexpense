@@ -77,8 +77,10 @@ async def scan_gmail_metadata(
             )
 
             if search_resp.status_code != 200:
-                logger.error(f"Gmail search failed: {search_resp.status_code} {search_resp.text}")
-                return []
+                error_text = search_resp.text[:500]
+                logger.error(f"Gmail search failed: {search_resp.status_code} {error_text}")
+                # Return the error so frontend can show it
+                return [{"email_id": "error", "subject": f"Gmail API error ({search_resp.status_code})", "sender": error_text[:200], "date": ""}]
 
             messages = search_resp.json().get("messages", [])
 
@@ -117,6 +119,7 @@ async def scan_gmail_metadata(
 
     except Exception as e:
         logger.error(f"Gmail metadata scan failed: {e}")
+        return [{"email_id": "error", "subject": f"Scan failed: {str(e)[:200]}", "sender": "", "date": ""}]
 
     return results
 
