@@ -62,9 +62,9 @@ function Row({
   copyValue?: string
 }) {
   return (
-    <div className="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
-      <span className="text-xs text-gray-400 w-20 shrink-0 pt-0.5">{label}</span>
-      <div className="flex-1 min-w-0 text-sm text-gray-900">{value ?? <span className="text-gray-400">—</span>}</div>
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <span className="text-xs text-gray-400 dark:text-gray-500 w-20 shrink-0 pt-0.5">{label}</span>
+      <div className="flex-1 min-w-0 text-sm text-gray-900 dark:text-white">{value ?? <span className="text-gray-400 dark:text-gray-500">—</span>}</div>
       {copyValue != null && copyValue.trim() !== '' && (
         <CopyButton value={copyValue} />
       )}
@@ -134,9 +134,9 @@ export default function SubmitSessionPage({ session }: Props) {
   const allDone = !loadingList && totalCount > 0 && pending.length === 0
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -149,16 +149,16 @@ export default function SubmitSessionPage({ session }: Props) {
               </svg>
             </button>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Submit expenses</h1>
-              <p className="text-xs text-gray-400">Copy fields into your expense tool, then mark each as submitted</p>
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Submit expenses</h1>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Copy fields into your expense tool, then mark each as submitted</p>
             </div>
           </div>
           {!loadingList && totalCount > 0 && (
             <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
                 {submittedCount} / {totalCount}
               </p>
-              <p className="text-xs text-gray-400">submitted</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">submitted</p>
             </div>
           )}
         </div>
@@ -181,8 +181,8 @@ export default function SubmitSessionPage({ session }: Props) {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm px-4">
             <div className="text-4xl mb-3">📋</div>
-            <p className="text-gray-900 font-medium">No confirmed expenses</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-gray-900 dark:text-white font-medium">No confirmed expenses</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Confirm your draft expenses on the dashboard first.
             </p>
             <button
@@ -197,8 +197,8 @@ export default function SubmitSessionPage({ session }: Props) {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm px-4">
             <div className="text-4xl mb-3">✅</div>
-            <p className="text-gray-900 font-medium">All expenses submitted!</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-gray-900 dark:text-white font-medium">All expenses submitted!</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {submittedCount} expense{submittedCount !== 1 ? 's' : ''} marked as submitted.
             </p>
             <button
@@ -212,7 +212,7 @@ export default function SubmitSessionPage({ session }: Props) {
       ) : (
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-6xl mx-auto w-full px-4 py-4 gap-4">
           {/* Sidebar */}
-          <aside className="w-full lg:w-72 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden lg:max-h-none max-h-40">
+          <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden lg:max-h-none max-h-40">
             <div className="px-3 py-2.5 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 {pending.length} remaining
@@ -227,12 +227,12 @@ export default function SubmitSessionPage({ session }: Props) {
                       selectedId === exp.id ? 'bg-green-50 border-l-2 border-l-green-500' : ''
                     }`}
                   >
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {exp.merchant_name ?? 'Unknown merchant'}
                     </p>
                     <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-xs text-gray-400">{exp.expense_date ?? '—'}</span>
-                      <span className="text-xs font-semibold text-gray-700">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{exp.expense_date ?? '—'}</span>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                         {exp.amount_total != null ? `$${exp.amount_total.toFixed(2)}` : '—'}
                       </span>
                     </div>
@@ -267,7 +267,7 @@ export default function SubmitSessionPage({ session }: Props) {
 
                 {/* Receipt image */}
                 {detail.receipts?.[0]?.image_url && (
-                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <img
                       src={detail.receipts[0].image_url}
                       alt={`Receipt from ${detail.merchant_name ?? 'merchant'}`}
@@ -277,8 +277,8 @@ export default function SubmitSessionPage({ session }: Props) {
                 )}
 
                 {/* Fields */}
-                <div className="bg-white rounded-2xl border border-gray-200">
-                  <div className="px-4 py-3 border-b border-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
                       Receipt data
                     </p>

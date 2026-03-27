@@ -204,7 +204,7 @@ export default function BankMatchingPage({ session }: { session: Session }) {
   // ── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       <div className="mx-auto max-w-4xl px-4 py-8">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

@@ -158,7 +158,7 @@ export default function EnterpriseSubmitPage({ session }: Props) {
   const allSelected = selectedIds.size === confirmedCount && confirmedCount > 0
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
       {/* Header */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-4">
         <div className="max-w-3xl mx-auto">
