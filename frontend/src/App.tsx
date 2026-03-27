@@ -26,6 +26,7 @@ import EnterpriseSubmitPage from './pages/EnterpriseSubmitPage'
 import BankMatchingPage from './pages/BankMatchingPage'
 import SubscriptionsPage from './pages/SubscriptionsPage'
 import AdminPage from './pages/AdminPage'
+import StatusPage from './pages/StatusPage'
 import WarrantyPage from './pages/WarrantyPage'
 
 function Spinner() {
@@ -196,6 +197,7 @@ function AppRoutes({ session }: { session: Session | null }) {
         }
       />
       <Route path="/admin" element={session ? <AdminPage session={session} /> : <Navigate to="/auth" replace />} />
+      <Route path="/status" element={session ? <StatusPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route
         path="/warranties"
         element={
