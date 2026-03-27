@@ -339,6 +339,177 @@ def admin_delete_duplicates(body: DeleteDuplicatesRequest, current_user: dict = 
     return {"deleted": deleted, "errors": errors}
 
 
+@router.post("/test-all")
+def admin_test_all(current_user: dict = Depends(_require_admin)):
+    """Comprehensive test of all features. Returns pass/fail for each."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+    results = {}
+
+    # === DATABASE TABLES ===
+    tables = [
+        "expenses", "receipts", "users", "tax_rates", "vendor_memory",
+        "trips", "budgets", "integration_connections", "category_mappings",
+        "bank_transactions", "recurring_expenses", "accountant_access",
+        "expense_comments", "warranties", "expense_templates",
+        "expense_groups", "forwarded_emails", "notifications",
+        "merchant_aliases", "attendees", "expense_line_items",
+    ]
+    for table in tables:
+        try:
+            admin.table(table).select("id").limit(1).execute()
+            results[f"table.{table}"] = "ok"
+        except Exception as e:
+            results[f"table.{table}"] = f"error: {str(e)[:80]}"
+
+    # === API KEYS ===
+    from ..config import settings
+    results["key.anthropic"] = "ok" if settings.anthropic_api_key else "MISSING"
+    results["key.google_vision"] = "ok" if settings.google_cloud_vision_api_key else "MISSING"
+    results["key.google_oauth"] = "ok" if settings.google_oauth_client_id else "MISSING"
+
+    # === MODULES ===
+    module_tests = [
+        ("module.tax_engine", "app.modules.tax.engine", "calculate_deduction"),
+        ("module.tax_rates", "app.modules.tax.rates", "get_tax_rates"),
+        ("module.tax_geocode", "app.modules.tax.geocode", "reverse_geocode_to_region"),
+        ("module.tax_estimator", "app.modules.tax.estimator", "estimate_quarterly_tax_cra"),
+        ("module.tax_home_office", "app.modules.tax.home_office", "calculate_home_office_ca"),
+        ("module.tax_mileage", "app.modules.tax.mileage", "calculate_mileage_deduction_cra"),
+        ("module.tax_cra", "app.modules.tax.cra_categories", "get_cra_category"),
+        ("module.tax_irs", "app.modules.tax.irs_categories", "get_irs_category"),
+        ("module.intel_work_hours", "app.modules.intel.work_hours", "suggest_expense_tag"),
+        ("module.intel_vendor_memory", "app.modules.intel.vendor_memory", "lookup_vendor"),
+        ("module.intel_transaction_matcher", "app.modules.intel.transaction_matcher", "match_transactions"),
+        ("module.intel_recurring", "app.modules.intel.recurring_detector", "detect_recurring"),
+        ("module.intel_duplicates", "app.modules.intel.smart_duplicate", "find_potential_duplicates"),
+        ("module.intel_nl_search", "app.modules.intel.nl_search", "parse_natural_query"),
+        ("module.intel_alerts", "app.modules.intel.missing_receipt_alerts", "get_missing_receipt_summary"),
+        ("module.export_tax_package", "app.modules.export.tax_package", "generate_tax_package"),
+        ("module.ai_parser", "app.services.ai_parser", "parse_receipt"),
+        ("module.ocr", "app.services.ocr", "run_ocr"),
+        ("module.pipeline", "app.services.pipeline", "process_receipt_bytes"),
+        ("module.merchant_aliases", "app.services.merchant_aliases", "resolve_merchant"),
+        ("module.gmail_scanner", "app.services.gmail_scanner", "scan_gmail_metadata"),
+    ]
+    for name, mod, func in module_tests:
+        try:
+            m = __import__(mod, fromlist=[func])
+            getattr(m, func)
+            results[name] = "ok"
+        except Exception as e:
+            results[name] = f"error: {str(e)[:80]}"
+
+    # === FUNCTIONAL TESTS ===
+
+    # Test: Can we read user's expenses?
+    try:
+        exps = admin.table("expenses").select("id, merchant_name, amount_total, status, expense_tag, category").eq("user_id", user_id).execute()
+        results["func.read_expenses"] = f"ok ({len(exps.data or [])} expenses)"
+    except Exception as e:
+        results["func.read_expenses"] = f"error: {str(e)[:80]}"
+
+    # Test: Can we read tax rates?
+    try:
+        rates = admin.table("tax_rates").select("country, region, tax_type, rate").limit(5).execute()
+        results["func.read_tax_rates"] = f"ok ({len(rates.data or [])} rates)"
+    except Exception as e:
+        results["func.read_tax_rates"] = f"error: {str(e)[:80]}"
+
+    # Test: Tax engine calculation
+    try:
+        from ..modules.tax.engine import calculate_deduction
+        result = calculate_deduction(admin, 100.0, 13.0, "Meals & Entertainment", "CA", "ON")
+        expected_deductible = 50.0  # 50% for meals
+        if abs(result["tax_deductible_amount"] - expected_deductible) < 0.01:
+            results["func.tax_calc_meals"] = f"ok (${result['tax_deductible_amount']} deductible)"
+        else:
+            results["func.tax_calc_meals"] = f"wrong: expected $50, got ${result['tax_deductible_amount']}"
+    except Exception as e:
+        results["func.tax_calc_meals"] = f"error: {str(e)[:80]}"
+
+    # Test: Geocode
+    try:
+        from ..modules.tax.geocode import reverse_geocode_to_region
+        result = reverse_geocode_to_region(43.65, -79.38)  # Toronto
+        if result == ("CA", "ON"):
+            results["func.geocode_toronto"] = "ok (CA, ON)"
+        else:
+            results["func.geocode_toronto"] = f"wrong: got {result}"
+    except Exception as e:
+        results["func.geocode_toronto"] = f"error: {str(e)[:80]}"
+
+    # Test: Work hours prediction
+    try:
+        from ..modules.intel.work_hours import suggest_expense_tag
+        tag, reason = suggest_expense_tag(
+            {"expense_categories": ["business", "personal"], "work_hours_start": "09:00", "work_hours_end": "17:00", "work_days": [1,2,3,4,5]},
+            expense_time="12:30", expense_date="2026-03-25"  # Tuesday lunch
+        )
+        results["func.work_hours_prediction"] = f"ok (suggested: {tag}, reason: {reason})"
+    except Exception as e:
+        results["func.work_hours_prediction"] = f"error: {str(e)[:80]}"
+
+    # Test: CRA category lookup
+    try:
+        from ..modules.tax.cra_categories import get_cra_category
+        cat = get_cra_category("Meals & Entertainment")
+        if cat["line"] == "8523" and cat["deduction_pct"] == 0.5:
+            results["func.cra_meals_category"] = f"ok (line {cat['line']}, {int(cat['deduction_pct']*100)}%)"
+        else:
+            results["func.cra_meals_category"] = f"wrong: {cat}"
+    except Exception as e:
+        results["func.cra_meals_category"] = f"error: {str(e)[:80]}"
+
+    # Test: IRS category lookup
+    try:
+        from ..modules.tax.irs_categories import get_irs_category
+        cat = get_irs_category("Meals & Entertainment")
+        if cat["line"] == "24b" and cat["deduction_pct"] == 0.5:
+            results["func.irs_meals_category"] = f"ok (line {cat['line']}, {int(cat['deduction_pct']*100)}%)"
+        else:
+            results["func.irs_meals_category"] = f"wrong: {cat}"
+    except Exception as e:
+        results["func.irs_meals_category"] = f"error: {str(e)[:80]}"
+
+    # Test: Quarterly estimate
+    try:
+        from ..modules.tax.estimator import estimate_quarterly_tax_cra
+        est = estimate_quarterly_tax_cra(80000, 20000, "ON")
+        if est["quarterly_instalment"] > 0:
+            results["func.quarterly_estimate"] = f"ok (${est['quarterly_instalment']}/quarter)"
+        else:
+            results["func.quarterly_estimate"] = f"wrong: ${est['quarterly_instalment']}"
+    except Exception as e:
+        results["func.quarterly_estimate"] = f"error: {str(e)[:80]}"
+
+    # Test: Home office calc
+    try:
+        from ..modules.tax.home_office import calculate_home_office_us
+        ho = calculate_home_office_us(1200, 150, annual_rent=18000, annual_utilities=2400)
+        if ho.get("recommended") in ("simplified", "actual"):
+            results["func.home_office"] = f"ok (recommended: {ho['recommended']})"
+        else:
+            results["func.home_office"] = f"wrong: {ho}"
+    except Exception as e:
+        results["func.home_office"] = f"error: {str(e)[:80]}"
+
+    # === SUMMARY ===
+    total = len(results)
+    passed = sum(1 for v in results.values() if v.startswith("ok"))
+    failed = total - passed
+
+    return {
+        "summary": {
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "score": f"{round(passed/total*100)}%",
+        },
+        "results": results,
+    }
+
+
 @router.get("/test-endpoints")
 def admin_test_endpoints(current_user: dict = Depends(_require_admin)):
     """Quick health check on all major endpoint groups."""

@@ -674,6 +674,11 @@ export async function adminHealth(token: string) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
+export async function adminTestAll(token: string) {
+  const res = await fetch(`${API_BASE}/admin/test-all`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
 export async function adminTestEndpoints(token: string) {
   const res = await fetch(`${API_BASE}/admin/test-endpoints`, { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
