@@ -374,10 +374,13 @@ def process_receipt_bytes(
                 ", ".join(d.get("reason", "") for d in duplicates[:3]),
             )
             # Store duplicate warning on the expense for frontend to display
+            # (only set if notes is currently empty — check in Python to avoid .is_() SDK issues)
             try:
-                admin.table("expenses").update({
-                    "notes": f"⚠ Possible duplicate: {duplicates[0].get('reason', 'similar expense found')}"
-                }).eq("id", expense_id).is_("notes", "null").execute()
+                _exp_check = admin.table("expenses").select("notes").eq("id", expense_id).maybe_single().execute()
+                if _exp_check.data and not _exp_check.data.get("notes"):
+                    admin.table("expenses").update({
+                        "notes": f"Possible duplicate: {duplicates[0].get('reason', 'similar expense found')}"
+                    }).eq("id", expense_id).execute()
             except Exception:
                 pass
     except Exception as e:

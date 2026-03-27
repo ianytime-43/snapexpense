@@ -9,15 +9,15 @@ def get_missing_receipt_summary(admin: Client, user_id: str) -> dict:
     """Generate missing receipt alert data."""
     # Get bank transactions without matched expenses
     try:
-        unmatched = (
+        _all_tx = (
             admin.table("bank_transactions")
-            .select("id, merchant_name, amount, transaction_date")
+            .select("id, merchant_name, amount, transaction_date, matched_expense_id")
             .eq("user_id", user_id)
-            .is_("matched_expense_id", "null")
             .order("transaction_date", desc=True)
-            .limit(20)
             .execute()
         )
+        _unmatched_data = [t for t in (_all_tx.data or []) if t.get("matched_expense_id") is None][:20]
+        unmatched = type('obj', (object,), {'data': _unmatched_data})()
     except Exception:
         unmatched = type('obj', (object,), {'data': []})()
 
@@ -35,7 +35,12 @@ def get_missing_receipt_summary(admin: Client, user_id: str) -> dict:
 
     # Get total receipt coverage
     total_expenses = admin.table("expenses").select("id", count="exact").eq("user_id", user_id).execute()
-    with_receipts = admin.table("receipts").select("expense_id", count="exact").eq("user_id", user_id).not_.is_("expense_id", "null").execute()
+    try:
+        _receipts_res = admin.table("receipts").select("expense_id").eq("user_id", user_id).execute()
+        _receipt_rows = [r for r in (_receipts_res.data or []) if r.get("expense_id") is not None]
+        with_receipts = type('obj', (object,), {'count': len(_receipt_rows)})()
+    except Exception:
+        with_receipts = type('obj', (object,), {'count': 0})()
 
     total = total_expenses.count or 0
     covered = with_receipts.count or 0

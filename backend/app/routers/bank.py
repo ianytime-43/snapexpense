@@ -141,17 +141,20 @@ async def list_transactions(
     supabase=Depends(get_supabase_admin),
 ):
     """List bank transactions with match status. Optionally filter to unmatched only."""
-    query = (
-        supabase.table("bank_transactions")
-        .select("*, expenses(id, merchant_name, amount_total, expense_date, status)")
-        .eq("user_id", user.id)
-        .order("transaction_date", desc=True)
-    )
+    try:
+        result = (
+            supabase.table("bank_transactions")
+            .select("*, expenses(id, merchant_name, amount_total, expense_date, status)")
+            .eq("user_id", user.id)
+            .order("transaction_date", desc=True)
+            .execute()
+        )
+    except Exception:
+        return []
+    data = result.data or []
     if unmatched_only:
-        query = query.is_("matched_expense_id", "null")
-
-    result = query.execute()
-    return result.data or []
+        data = [t for t in data if t.get("matched_expense_id") is None]
+    return data
 
 
 # ── POST /bank/match ──────────────────────────────────────────────────────────

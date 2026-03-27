@@ -70,9 +70,12 @@ class ExpenseUpdate(BaseModel):
 def expenses_by_jurisdiction(current_user: dict = Depends(get_current_user)):
     user_id = current_user["user"].id
     admin = get_supabase_admin()
-    result = admin.table("expenses").select("*").eq("user_id", user_id).not_.is_("location_jurisdiction", "null").execute()
+    try:
+        result = admin.table("expenses").select("*").eq("user_id", user_id).execute()
+    except Exception:
+        result = type("obj", (object,), {"data": []})()
     groups: dict = defaultdict(list)
-    for exp in (result.data or []):
+    for exp in [e for e in (result.data or []) if e.get("location_jurisdiction") is not None]:
         groups[exp["location_jurisdiction"]].append(exp)
     return [
         {

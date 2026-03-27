@@ -14,16 +14,21 @@ def find_potential_duplicates(admin: Client, user_id: str, expense: dict) -> lis
     if not amount or not date:
         return []
 
-    # Query similar expenses
-    results = (
-        admin.table("expenses")
-        .select("id, merchant_name, amount_total, expense_date, status")
-        .eq("user_id", user_id)
-        .neq("id", expense.get("id", ""))
-        .gte("expense_date", _offset_date(date, -2))
-        .lte("expense_date", _offset_date(date, 2))
-        .execute()
-    )
+    # Query similar expenses (filter out current expense in Python to avoid .neq() issues)
+    try:
+        results = (
+            admin.table("expenses")
+            .select("id, merchant_name, amount_total, expense_date, status")
+            .eq("user_id", user_id)
+            .gte("expense_date", _offset_date(date, -2))
+            .lte("expense_date", _offset_date(date, 2))
+            .execute()
+        )
+    except Exception:
+        return []
+    current_id = expense.get("id", "")
+    results_data = [e for e in (results.data or []) if e.get("id") != current_id]
+    results = type("obj", (object,), {"data": results_data})()
 
     duplicates = []
     for e in (results.data or []):

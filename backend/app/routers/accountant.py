@@ -144,16 +144,19 @@ def accountant_view(token: str):
     user_id = row["user_id"]
     admin = get_supabase_admin()
 
-    expenses = (
-        admin.table("expenses")
-        .select("*")
-        .eq("user_id", user_id)
-        .neq("expense_tag", "personal")
-        .order("expense_date", desc=True)
-        .execute()
-    )
+    try:
+        expenses_result = (
+            admin.table("expenses")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("expense_date", desc=True)
+            .execute()
+        )
+    except Exception:
+        expenses_result = type("obj", (object,), {"data": []})()
+    expenses_data = [e for e in (expenses_result.data or []) if e.get("expense_tag") != "personal"]
 
-    expense_ids = [e["id"] for e in (expenses.data or [])]
+    expense_ids = [e["id"] for e in expenses_data]
 
     comments = []
     if expense_ids:
@@ -169,7 +172,7 @@ def accountant_view(token: str):
     return {
         "accountant_email": row["accountant_email"],
         "granted_at": row["granted_at"],
-        "expenses": expenses.data or [],
+        "expenses": expenses_data,
         "comments": comments,
     }
 
