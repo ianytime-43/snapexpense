@@ -481,7 +481,8 @@ export default function SettingsPage({ session }: Props) {
 
       <main className="max-w-2xl mx-auto px-4 py-6 pb-20 space-y-4">
 
-        {/* Connected Accounts card */}
+        {/* Connected Accounts — hidden until QuickBooks/Xero/Wave OAuth apps are configured */}
+        {false && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
             Connected Accounts
@@ -548,6 +549,7 @@ export default function SettingsPage({ session }: Props) {
             </div>
           )}
         </div>
+        )}
 
         {/* Google Calendar card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -588,7 +590,8 @@ export default function SettingsPage({ session }: Props) {
           )}
         </div>
 
-        {/* Outlook Calendar card */}
+        {/* Outlook Calendar — hidden until Microsoft OAuth app is configured */}
+        {false && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
             Outlook Calendar
@@ -627,6 +630,7 @@ export default function SettingsPage({ session }: Props) {
             </button>
           )}
         </div>
+        )}
 
         {/* Email Scanning card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -658,6 +662,8 @@ export default function SettingsPage({ session }: Props) {
                 </button>
               </div>
             </div>
+            {/* Outlook scan — hidden until Microsoft OAuth app is configured */}
+            {false && (
             <div className="flex-1 space-y-2">
               <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">Outlook</p>
               <div className="flex gap-2">
@@ -677,6 +683,7 @@ export default function SettingsPage({ session }: Props) {
                 </button>
               </div>
             </div>
+            )}
           </div>
 
           {scanning && (
@@ -1065,7 +1072,8 @@ export default function SettingsPage({ session }: Props) {
           </div>
         )}
 
-        {/* Share with Partner card */}
+        {/* Share with Partner — hidden (duplicate of Share with Accountant; use that instead) */}
+        {false && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
             Share with Partner
@@ -1122,6 +1130,7 @@ export default function SettingsPage({ session }: Props) {
             <p className="text-sm text-gray-400 dark:text-gray-500">No one has access yet.</p>
           )}
         </div>
+        )}
 
         {/* Share with Accountant card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">

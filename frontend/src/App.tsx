@@ -166,16 +166,8 @@ function AppRoutes({ session }: { session: Session | null }) {
           )
         }
       />
-      <Route
-        path="/bank"
-        element={
-          session ? (
-            <BankMatchingPage session={session} />
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
+      {/* Bank matching — hidden until Plaid is configured */}
+      <Route path="/bank" element={<Navigate to="/dashboard" replace />} />
       <Route
         path="/subscriptions"
         element={
@@ -186,16 +178,8 @@ function AppRoutes({ session }: { session: Session | null }) {
           )
         }
       />
-      <Route
-        path="/enterprise-submit"
-        element={
-          session ? (
-            <EnterpriseSubmitPage session={session} />
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
+      {/* Enterprise submit — hidden until Concur is configured */}
+      <Route path="/enterprise-submit" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={session ? <AdminPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="/status" element={session ? <StatusPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route
