@@ -7,6 +7,12 @@ from ..config import settings
 
 _PROMPT_TEMPLATE = """\
 Extract structured data from the receipt text below. \
+IMPORTANT: OCR text may contain misread characters. Common OCR errors to fix:
+- Years: 2006, 2002, 2020 are likely 2026, 2025 — receipts being scanned are almost always from 2025 or 2026. Correct obviously wrong years.
+- Digits: 0 and O, 1 and l, 5 and S, 8 and B are often confused. Use context to determine the correct digit.
+- Amounts: if a decimal amount looks wrong (e.g., $1,000 for a coffee), use common sense to fix it.
+- Currency: receipts from Canada are CAD, not USD. Look for $ with Canadian addresses/merchants.
+
 Return ONLY a valid JSON object with exactly these fields (use null for any missing values):
 
 {{

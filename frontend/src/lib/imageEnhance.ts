@@ -76,7 +76,7 @@ export async function enhanceCanvasToFile(
         resolve(new File([blob], filename, { type: 'image/jpeg' }))
       },
       'image/jpeg',
-      0.92,
+      0.95,
     )
   })
 }
