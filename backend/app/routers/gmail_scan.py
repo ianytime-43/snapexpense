@@ -132,6 +132,14 @@ async def import_gmail_receipt(
             if cat and not parsed.get("category"):
                 parsed["category"] = cat
 
+        # Check for existing similar expense before creating
+        if parsed.get("amount_total") and parsed.get("merchant_name"):
+            existing = admin.table("expenses").select("id, merchant_name, amount_total, expense_date").eq("user_id", user_id).execute()
+            for e in (existing.data or []):
+                if (abs(float(e.get("amount_total") or 0) - float(parsed["amount_total"])) < 0.01
+                        and (e.get("merchant_name") or "").upper()[:8] == (parsed["merchant_name"] or "").upper()[:8]):
+                    return {"status": "duplicate", "expense_id": e["id"], "message": f"Similar expense already exists: {e.get('merchant_name')} ${e.get('amount_total')}"}
+
         # Create expense
         expense_data = {
             "user_id": user_id,

@@ -91,9 +91,16 @@ def health():
     try:
         admin.table("merchant_aliases").select("id").limit(1).execute()
         checks["merchant_aliases"] = "ok"
-    except Exception:
-        checks["merchant_aliases"] = "error"
-        all_ok = False
+    except Exception as e:
+        err_str = str(e).lower()
+        # Table missing (migration 005 not run) — non-critical, receipts still parse
+        if "does not exist" in err_str or "relation" in err_str or "42p01" in err_str:
+            checks["merchant_aliases"] = "warning: table not found (run migration 005)"
+        else:
+            # RLS or other transient error — service role should bypass RLS,
+            # but if it can't, aliases still degrade gracefully
+            checks["merchant_aliases"] = "warning: query failed (non-critical)"
+        # Do NOT set all_ok = False — merchant_aliases is non-critical
 
     return {
         "status": "ok" if all_ok else "degraded",
