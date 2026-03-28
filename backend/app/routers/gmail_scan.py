@@ -165,6 +165,15 @@ async def import_gmail_receipt(
         result = admin.table("expenses").insert(expense_data).execute()
         expense_id = result.data[0]["id"] if result.data else None
 
+        # Flag expenses with missing amounts for review
+        if not expense_data.get("amount_total") or expense_data.get("amount_total") == 0:
+            try:
+                admin.table("expenses").update({
+                    "notes": "Needs review: amount could not be extracted from email. Please update manually."
+                }).eq("id", expense_id).execute()
+            except Exception:
+                pass
+
         return {"status": "ok", "expense_id": expense_id, "parsed": parsed}
 
     except HTTPException:

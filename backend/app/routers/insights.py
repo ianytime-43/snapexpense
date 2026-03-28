@@ -34,7 +34,7 @@ def get_spending_trends(
     # Group by month — include all expenses, filter by date if available
     monthly = defaultdict(lambda: {"total": 0, "business": 0, "work": 0, "personal": 0, "count": 0})
     for e in (expenses.data or []):
-        if not e.get("amount_total"):
+        if not e.get("amount_total") or float(e.get("amount_total") or 0) == 0:
             continue
         # Use expense_date if available, otherwise use current month
         exp_date = e.get("expense_date")
@@ -78,7 +78,10 @@ def get_top_vendors(
     vendor_totals = defaultdict(lambda: {"total": 0, "count": 0})
     for e in (expenses.data or []):
         name = e.get("merchant_name") or "Unknown"
-        vendor_totals[name]["total"] += float(e.get("amount_total") or 0)
+        amount = float(e.get("amount_total") or 0)
+        if amount == 0:
+            continue  # Skip zero-amount expenses
+        vendor_totals[name]["total"] += amount
         vendor_totals[name]["count"] += 1
 
     sorted_vendors = sorted(vendor_totals.items(), key=lambda x: x[1]["total"], reverse=True)[:limit]

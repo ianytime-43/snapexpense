@@ -236,6 +236,25 @@ def admin_reprocess_all(current_user: dict = Depends(_require_admin)):
         raise HTTPException(500, str(e))
 
 
+@router.get("/zero-amount")
+def admin_find_zero_amount(current_user: dict = Depends(_require_admin)):
+    """Find expenses with zero or null amounts that need manual review."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+
+    try:
+        all_expenses = admin.table("expenses").select(
+            "id, merchant_name, amount_total, expense_date, notes, status"
+        ).eq("user_id", user_id).execute()
+
+        zero_expenses = [e for e in (all_expenses.data or [])
+                        if not e.get("amount_total") or float(e.get("amount_total") or 0) == 0]
+
+        return {"expenses": zero_expenses, "count": len(zero_expenses)}
+    except Exception as e:
+        return {"expenses": [], "count": 0, "error": str(e)}
+
+
 @router.get("/duplicates")
 def admin_find_duplicates(current_user: dict = Depends(_require_admin)):
     """Find duplicate expenses — same amount + similar merchant + close dates."""
