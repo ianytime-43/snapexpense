@@ -68,6 +68,23 @@
     "deduction_summary": "Résumé des déductions",
     "no_business_expenses": "Aucune dépense d'affaires"
   },
+  "status": {
+    "draft": "En attente",
+    "confirmed": "Confirmé",
+    "submitted": "Soumis",
+    "reimbursed": "Remboursé"
+  },
+  "categories": {
+    "meals": "Repas et divertissement",
+    "travel": "Voyage",
+    "accommodation": "Hébergement",
+    "transportation": "Transport",
+    "office": "Fournitures de bureau",
+    "software": "Logiciel",
+    "marketing": "Marketing",
+    "professional": "Services professionnels",
+    "other": "Autre"
+  },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur s'est produite",

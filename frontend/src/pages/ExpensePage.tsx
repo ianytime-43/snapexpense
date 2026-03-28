@@ -106,7 +106,7 @@ function formatCAD(amount: number | null, currency = 'CAD') {
 }
 
 const inputCls =
-  'border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
+  'border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
 
 export default function ExpensePage({ session }: Props) {
   const { t } = useTranslation()
@@ -517,6 +517,13 @@ export default function ExpensePage({ session }: Props) {
           </div>
         )}
 
+        {/* Missing amount warning */}
+        {(!expense.amount_total || expense.amount_total === 0) && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-sm text-amber-700 dark:text-amber-300">
+            Amount missing — please update the total manually.
+          </div>
+        )}
+
         {/* Extracted fields */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100">
           <div className="px-4 py-3">
@@ -857,7 +864,7 @@ export default function ExpensePage({ session }: Props) {
                               value={newGroupTitle}
                               onChange={e => setNewGroupTitle(e.target.value)}
                               onKeyDown={e => e.key === 'Enter' && handleCreateGroup()}
-                              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
+                              className="border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
                               placeholder="Trip name (e.g. NYC Jan 2026)"
                             />
                             <div className="flex gap-2">
@@ -962,45 +969,44 @@ export default function ExpensePage({ session }: Props) {
       )}
 
       {/* Action bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 safe-area-bottom">
-        <div className="max-w-2xl mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 safe-area-bottom">
+        <div className="max-w-2xl mx-auto space-y-2">
           {isDraft ? (
-            <div className="space-y-2">
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDiscard}
-                  disabled={saving}
-                  className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  {t('expense.discard')}
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  disabled={saving}
-                  className="flex-[2] bg-green-600 text-white rounded-xl py-3.5 text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {saving
-                    ? 'Saving…'
-                    : isEditing
-                      ? 'Save & Confirm'
-                      : t('expense.confirm')}
-                </button>
-              </div>
+            <div className="flex gap-3">
               <button
-                onClick={() => setShowSplit(true)}
+                onClick={handleDiscard}
                 disabled={saving}
-                className="w-full border border-blue-200 text-blue-600 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl py-3.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
-                {t('expense.split')}
+                {t('expense.discard')}
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={saving}
+                className="flex-[2] bg-green-600 text-white rounded-xl py-3.5 text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {saving
+                  ? 'Saving…'
+                  : isEditing
+                    ? 'Save & Confirm'
+                    : t('expense.confirm')}
               </button>
             </div>
           ) : (
-            <div className="bg-green-50 border border-green-200 rounded-xl py-3 px-4 text-center">
-              <p className="text-green-700 font-medium text-sm">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl py-3 px-4 text-center">
+              <p className="text-green-700 dark:text-green-400 font-medium text-sm">
                 ✓ Expense {expense.status}
               </p>
             </div>
           )}
+          {/* Split button — available for all statuses */}
+          <button
+            onClick={() => setShowSplit(true)}
+            disabled={saving}
+            className="w-full border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+          >
+            {t('expense.split')}
+          </button>
         </div>
       </div>
     </div>

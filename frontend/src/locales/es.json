@@ -68,6 +68,23 @@
     "deduction_summary": "Resumen de deducciones",
     "no_business_expenses": "Sin gastos de negocio"
   },
+  "status": {
+    "draft": "Pendiente",
+    "confirmed": "Confirmado",
+    "submitted": "Enviado",
+    "reimbursed": "Reembolsado"
+  },
+  "categories": {
+    "meals": "Comidas y entretenimiento",
+    "travel": "Viaje",
+    "accommodation": "Alojamiento",
+    "transportation": "Transporte",
+    "office": "Material de oficina",
+    "software": "Software",
+    "marketing": "Marketing",
+    "professional": "Servicios profesionales",
+    "other": "Otro"
+  },
   "common": {
     "loading": "Cargando...",
     "error": "Algo salió mal",

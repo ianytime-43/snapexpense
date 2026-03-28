@@ -46,34 +46,44 @@ def _compute_group_summary(group: dict) -> dict:
 def list_groups(current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    result = (
-        admin.table("expense_groups")
-        .select("*, expenses(id, amount_total)")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
-    groups = result.data or []
-    return [_compute_group_summary(g) for g in groups]
+    try:
+        result = (
+            admin.table("expense_groups")
+            .select("*, expenses(id, amount_total)")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        groups = result.data or []
+        return [_compute_group_summary(g) for g in groups]
+    except Exception as exc:
+        logger.error("list_groups error: %s", exc)
+        raise HTTPException(500, "Failed to load groups")
 
 
 @router.post("")
 def create_group(body: GroupCreate, current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    data = {
-        "user_id": user_id,
-        "title": body.title,
-        "trip_date_start": body.trip_date_start,
-        "trip_date_end": body.trip_date_end,
-    }
-    result = admin.table("expense_groups").insert(data).execute()
-    if not result.data:
+    try:
+        data = {
+            "user_id": user_id,
+            "title": body.title,
+            "trip_date_start": body.trip_date_start,
+            "trip_date_end": body.trip_date_end,
+        }
+        result = admin.table("expense_groups").insert(data).execute()
+        if not result.data:
+            raise HTTPException(500, "Failed to create group")
+        group = result.data[0]
+        group["expense_count"] = 0
+        group["total_amount"] = 0.0
+        return group
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("create_group error: %s", exc)
         raise HTTPException(500, "Failed to create group")
-    group = result.data[0]
-    group["expense_count"] = 0
-    group["total_amount"] = 0.0
-    return group
 
 
 @router.patch("/{group_id}")
@@ -143,24 +153,29 @@ def delete_group(group_id: str, current_user: dict = Depends(get_current_user)):
 def get_group(group_id: str, current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
+    try:
+        result = (
+            admin.table("expense_groups")
+            .select("*, expenses(*, receipts(*))")
+            .eq("id", group_id)
+            .maybe_single()
+            .execute()
+        )
+        if not result or not result.data:
+            raise HTTPException(404, "Group not found")
+        group = result.data
+        if group["user_id"] != user_id:
+            raise HTTPException(403, "Not your group")
 
-    result = (
-        admin.table("expense_groups")
-        .select("*, expenses(*, receipts(*))")
-        .eq("id", group_id)
-        .maybe_single()
-        .execute()
-    )
-    if not result or not result.data:
-        raise HTTPException(404, "Group not found")
-    group = result.data
-    if group["user_id"] != user_id:
-        raise HTTPException(403, "Not your group")
-
-    expenses = group.get("expenses") or []
-    group["expense_count"] = len(expenses)
-    group["total_amount"] = round(sum(float(e.get("amount_total") or 0) for e in expenses), 2)
-    return group
+        expenses = group.get("expenses") or []
+        group["expense_count"] = len(expenses)
+        group["total_amount"] = round(sum(float(e.get("amount_total") or 0) for e in expenses), 2)
+        return group
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("get_group error: %s", exc)
+        raise HTTPException(500, "Failed to load group")
 
 
 @router.post("/{group_id}/expenses")

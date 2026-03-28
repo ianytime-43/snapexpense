@@ -68,6 +68,23 @@
     "deduction_summary": "Deduction Summary",
     "no_business_expenses": "No business expenses"
   },
+  "status": {
+    "draft": "Pending Review",
+    "confirmed": "Confirmed",
+    "submitted": "Submitted",
+    "reimbursed": "Reimbursed"
+  },
+  "categories": {
+    "meals": "Meals & Entertainment",
+    "travel": "Travel",
+    "accommodation": "Accommodation",
+    "transportation": "Transportation",
+    "office": "Office Supplies",
+    "software": "Software",
+    "marketing": "Marketing",
+    "professional": "Professional Services",
+    "other": "Other"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
