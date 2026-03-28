@@ -90,9 +90,9 @@ function Row({
   copyValue?: string
 }) {
   return (
-    <div className="flex items-start gap-3 py-2">
-      <span className="text-sm text-gray-400 w-24 shrink-0 pt-1">{label}</span>
-      <div className="flex-1 min-w-0">{children}</div>
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-1">{label}</span>
+      <div className="flex-1 min-w-0 text-sm text-gray-900 dark:text-white">{children}</div>
       {copyValue != null && copyValue.trim() !== '' && (
         <CopyButton value={copyValue} />
       )}
@@ -525,9 +525,9 @@ export default function ExpensePage({ session }: Props) {
         )}
 
         {/* Extracted fields */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
           <div className="px-4 py-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
               Extracted from receipt
             </p>
             <Row label="Merchant" copyValue={expense.merchant_name ?? undefined}>

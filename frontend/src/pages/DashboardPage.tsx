@@ -42,10 +42,11 @@ function thisMonthRange() {
   return { start: fmt(start), end: fmt(now) }
 }
 
-function ExpenseCard({ expense }: { expense: Expense }) {
+function ExpenseCard({ expense, preventNav }: { expense: Expense; preventNav?: boolean }) {
   return (
     <Link
       to={`/expenses/${expense.id}`}
+      onClick={preventNav ? (e: React.MouseEvent) => e.preventDefault() : undefined}
       className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-green-300 hover:shadow-sm transition-all"
     >
       <div className="flex items-center justify-between gap-4">
@@ -608,7 +609,7 @@ export default function DashboardPage({ session }: Props) {
                                 onSwipeLeft={() => handleSwipeDelete(expense)}
                                 disabled={bulkMode}
                               >
-                                <ExpenseCard expense={expense} />
+                                <ExpenseCard expense={expense} preventNav={bulkMode} />
                               </SwipeableCard>
                             </div>
                           </div>
@@ -654,7 +655,7 @@ export default function DashboardPage({ session }: Props) {
                                 onSwipeLeft={() => handleSwipeDelete(expense)}
                                 disabled={bulkMode}
                               >
-                                <ExpenseCard expense={expense} />
+                                <ExpenseCard expense={expense} preventNav={bulkMode} />
                               </SwipeableCard>
                             </div>
                           </div>
@@ -705,7 +706,7 @@ export default function DashboardPage({ session }: Props) {
                                 onSwipeLeft={() => handleSwipeDelete(expense)}
                                 disabled={bulkMode}
                               >
-                                <ExpenseCard expense={expense} />
+                                <ExpenseCard expense={expense} preventNav={bulkMode} />
                               </SwipeableCard>
                             </div>
                           </div>

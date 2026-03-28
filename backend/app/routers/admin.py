@@ -529,6 +529,25 @@ def admin_test_all(current_user: dict = Depends(_require_admin)):
     }
 
 
+@router.post("/clear-duplicate-notes")
+def admin_clear_duplicate_notes(current_user: dict = Depends(_require_admin)):
+    """Remove all auto-generated 'Possible duplicate' notes from expenses."""
+    user_id = str(current_user["user"].id)
+    admin = get_supabase_admin()
+
+    try:
+        all_expenses = admin.table("expenses").select("id, notes").eq("user_id", user_id).execute()
+        cleared = 0
+        for e in (all_expenses.data or []):
+            notes = e.get("notes") or ""
+            if "Possible duplicate" in notes or "possible duplicate" in notes:
+                admin.table("expenses").update({"notes": None}).eq("id", e["id"]).execute()
+                cleared += 1
+        return {"cleared": cleared}
+    except Exception as e:
+        return {"error": str(e), "cleared": 0}
+
+
 @router.get("/test-endpoints")
 def admin_test_endpoints(current_user: dict = Depends(_require_admin)):
     """Quick health check on all major endpoint groups."""
