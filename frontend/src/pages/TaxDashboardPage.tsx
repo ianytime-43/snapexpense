@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Skeleton } from '../components/Skeleton'
 import { getTaxSummary } from '../lib/api'
 
@@ -51,6 +52,7 @@ function currentQuarterYear() {
 }
 
 export default function TaxDashboardPage({ session }: Props) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { quarter: defaultQ, year: defaultY } = currentQuarterYear()
   const [quarter, setQuarter] = useState(defaultQ)
@@ -86,7 +88,7 @@ export default function TaxDashboardPage({ session }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white flex-1">Tax Dashboard</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{t('tax.title')}</h1>
 
           {/* Quarter selector */}
           <div className="flex items-center gap-2">
@@ -123,7 +125,7 @@ export default function TaxDashboardPage({ session }: Props) {
         {/* Card 1 — Tax Savings Hero */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
-            Q{quarter} {year} — Tax Savings
+            Q{quarter} {year} — {t('tax.savings')}
           </p>
 
           {loading ? (

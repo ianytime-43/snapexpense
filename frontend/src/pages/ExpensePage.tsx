@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   addExpensesToGroup,
   confirmExpense,
@@ -108,6 +109,7 @@ const inputCls =
   'border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'
 
 export default function ExpensePage({ session }: Props) {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [expense, setExpense] = useState<Expense | null>(null)
@@ -916,9 +918,9 @@ export default function ExpensePage({ session }: Props) {
           </p>
           <div className="flex gap-2">
             {[
-              { id: 'business', label: 'Business', color: 'green' },
-              { id: 'work', label: 'Work', color: 'blue' },
-              { id: 'personal', label: 'Personal', color: 'gray' },
+              { id: 'business', label: t('expense.business'), color: 'green' },
+              { id: 'work', label: t('expense.work'), color: 'blue' },
+              { id: 'personal', label: t('expense.personal'), color: 'gray' },
             ].map(tag => (
               <button
                 key={tag.id}
@@ -970,7 +972,7 @@ export default function ExpensePage({ session }: Props) {
                   disabled={saving}
                   className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
-                  Discard
+                  {t('expense.discard')}
                 </button>
                 <button
                   onClick={handleConfirm}
@@ -981,7 +983,7 @@ export default function ExpensePage({ session }: Props) {
                     ? 'Saving…'
                     : isEditing
                       ? 'Save & Confirm'
-                      : 'Confirm expense'}
+                      : t('expense.confirm')}
                 </button>
               </div>
               <button
@@ -989,7 +991,7 @@ export default function ExpensePage({ session }: Props) {
                 disabled={saving}
                 className="w-full border border-blue-200 text-blue-600 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
               >
-                Split expense
+                {t('expense.split')}
               </button>
             </div>
           ) : (

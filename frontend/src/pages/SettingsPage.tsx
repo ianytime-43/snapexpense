@@ -475,7 +475,7 @@ export default function SettingsPage({ session }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{t('settings.title')}</h1>
         </div>
       </header>
 
@@ -897,7 +897,7 @@ export default function SettingsPage({ session }: Props) {
         {/* Notifications card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-            Notifications
+            {t('settings.notifications')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Choose how you want to be notified about expenses and updates.
@@ -942,7 +942,7 @@ export default function SettingsPage({ session }: Props) {
         {/* Theme card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-            Appearance
+            {t('settings.appearance')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Choose your preferred theme
@@ -958,7 +958,7 @@ export default function SettingsPage({ session }: Props) {
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                {themeOption === 'light' ? 'Light' : themeOption === 'dark' ? 'Dark' : 'System'}
+                {themeOption === 'light' ? t('settings.light') : themeOption === 'dark' ? t('settings.dark') : t('settings.system')}
               </button>
             ))}
           </div>
@@ -1220,7 +1220,7 @@ export default function SettingsPage({ session }: Props) {
         {/* Your Data card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-            Your Data
+            {t('settings.your_data')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Download or delete all your data. We respect your privacy rights under PIPEDA and CCPA.
@@ -1231,13 +1231,13 @@ export default function SettingsPage({ session }: Props) {
               disabled={exportWorking}
               className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
-              {exportWorking ? 'Generating export…' : 'Download all my data (ZIP)'}
+              {exportWorking ? 'Generating export…' : t('settings.export_data')}
             </button>
             <button
               onClick={handleDeleteAccount}
               className="w-full text-left px-4 py-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
             >
-              Delete my account permanently
+              {t('settings.delete_account')}
             </button>
           </div>
         </div>
@@ -1252,7 +1252,7 @@ export default function SettingsPage({ session }: Props) {
             onClick={() => supabase.auth.signOut()}
             className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
           >
-            Sign out
+            {t('settings.sign_out')}
           </button>
         </div>
 

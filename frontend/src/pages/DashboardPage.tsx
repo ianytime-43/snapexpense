@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import BulkActions from '../components/BulkActions'
 import ScanStreak from '../components/ScanStreak'
 import { SkeletonCard, SkeletonStats } from '../components/Skeleton'
@@ -100,6 +101,7 @@ function ExpenseCard({ expense }: { expense: Expense }) {
 }
 
 export default function DashboardPage({ session }: Props) {
+  const { t } = useTranslation()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -309,7 +311,7 @@ export default function DashboardPage({ session }: Props) {
     <div className="min-h-screen bg-cream-50 dark:bg-forest-900">
       <header className="bg-white dark:bg-forest-800 border-b border-cream-300 dark:border-forest-600 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-forest-100">SnapExpense</h1>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-forest-100">{t('app_name')}</h1>
 
           <div className="flex items-center gap-1.5">
             {/* Export dropdown */}
@@ -388,33 +390,33 @@ export default function DashboardPage({ session }: Props) {
         {!loading && expenses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">This Month</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{t('dashboard.this_month')}</p>
               <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(thisMonthTotal)}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                {thisMonth.length} expense{thisMonth.length !== 1 ? 's' : ''}
+                {thisMonth.length} {t('dashboard.expenses')}
               </p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-yellow-200 dark:border-yellow-900 p-3">
-              <p className="text-xs text-yellow-600 mb-1">Pending</p>
+              <p className="text-xs text-yellow-600 mb-1">{t('dashboard.pending')}</p>
               <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(pendingTotal)}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">{pending.length} to review</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{pending.length} {t('dashboard.to_review')}</p>
             </div>
             <button
               onClick={() => confirmed.length > 0 && navigate('/submit-session')}
               className={`bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-900 p-3 text-left w-full transition-colors ${confirmed.length > 0 ? 'hover:bg-green-50 dark:hover:bg-green-950 cursor-pointer' : 'cursor-default'}`}
             >
-              <p className="text-xs text-green-600 mb-1">Confirmed</p>
+              <p className="text-xs text-green-600 mb-1">{t('dashboard.confirmed')}</p>
               <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                 {formatCAD(confirmedTotal)}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
                 {confirmed.length > 0
-                  ? `${confirmed.length} ready to submit →`
-                  : '0 expenses'}
+                  ? `${confirmed.length} ${t('dashboard.ready_to_submit')} →`
+                  : `0 ${t('dashboard.expenses')}`}
               </p>
             </button>
           </div>
@@ -431,7 +433,7 @@ export default function DashboardPage({ session }: Props) {
             <form onSubmit={handleSearch} className="flex gap-2">
               <input
                 type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                placeholder='Search: "uber rides in january", "meals over $50"...'
+                placeholder={t('dashboard.search_placeholder')}
                 className="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <button type="submit" disabled={searchLoading} className="bg-green-600 text-white rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-50">
@@ -465,7 +467,7 @@ export default function DashboardPage({ session }: Props) {
           <div className="py-8">
             <div className="text-center mb-8">
               <div className="text-5xl mb-3">📸</div>
-              <p className="font-semibold text-gray-800 dark:text-white text-lg">Welcome to SnapExpense</p>
+              <p className="font-semibold text-gray-800 dark:text-white text-lg">{t('dashboard.welcome')}</p>
               <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
                 Capture and track your business expenses in seconds
               </p>

@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { calculateBlurScore } from '../lib/blurDetector'
 import { enhanceCanvasToFile } from '../lib/imageEnhance'
 import { getCurrentPosition, type GpsCoords } from '../lib/gps'
@@ -21,6 +22,7 @@ const ANALYSIS_HEIGHT = 270
 const STABLE_FRAMES_REQUIRED = 30  // ~1 second at 30fps — prevents rapid-fire
 
 export default function ScannerMode({ onComplete, onCancel }: Props) {
+  const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const analysisCanvasRef = useRef<HTMLCanvasElement>(null)
   const captureCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -224,13 +226,13 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
   const statusText = (() => {
     switch (scanState) {
       case 'searching':
-        return 'Position receipt and tap to capture'
+        return t('scanner.position_receipt')
       case 'detected':
-        return 'Looking good — tap to capture'
+        return t('scanner.looking_good')
       case 'verifying':
-        return 'Tap to capture'
+        return t('scanner.tap_to_capture')
       case 'captured':
-        return 'Captured!'
+        return t('scanner.captured')
     }
   })()
 
@@ -327,7 +329,7 @@ export default function ScannerMode({ onComplete, onCancel }: Props) {
           onClick={handleDone}
           className="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur text-white text-sm font-medium active:bg-white/30"
         >
-          {receipts.length > 0 ? `Done (${receipts.length})` : 'Cancel'}
+          {receipts.length > 0 ? `${t('scanner.done')} (${receipts.length})` : t('scanner.cancel')}
         </button>
 
         {/* Status label */}
