@@ -49,16 +49,27 @@ def list_groups(current_user: dict = Depends(get_current_user)):
     try:
         result = (
             admin.table("expense_groups")
-            .select("*, expenses(id, amount_total)")
+            .select("*")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute()
         )
         groups = result.data or []
-        return [_compute_group_summary(g) for g in groups]
+
+        # Compute expense count and total for each group
+        for g in groups:
+            try:
+                exps = admin.table("expenses").select("amount_total").eq("group_id", g["id"]).execute()
+                g["expense_count"] = len(exps.data or [])
+                g["total_amount"] = round(sum(float(e.get("amount_total") or 0) for e in (exps.data or [])), 2)
+            except Exception:
+                g["expense_count"] = 0
+                g["total_amount"] = 0
+
+        return groups
     except Exception as exc:
         logger.error("list_groups error: %s", exc)
-        raise HTTPException(500, "Failed to load groups")
+        return []  # Return empty instead of 500
 
 
 @router.post("")
