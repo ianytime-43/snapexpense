@@ -44,7 +44,7 @@ function SingleView({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <img
           src={item.preview}
           alt="Receipt preview"
@@ -135,7 +135,7 @@ function BatchView({
           return (
             <div
               key={item.id}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
               <div className="relative">
                 <img
@@ -144,7 +144,7 @@ function BatchView({
                   className="w-full h-28 object-cover"
                 />
                 {item.status === 'processing' && (
-                  <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-white/70 dark:bg-gray-800/70 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600" />
                   </div>
                 )}
@@ -176,7 +176,7 @@ function BatchView({
 
       {/* Progress bar while uploading */}
       {uploading && (
-        <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 font-medium">Processing receipts…</span>
             <span className="text-sm text-gray-500">{done} / {items.length}</span>
@@ -192,7 +192,7 @@ function BatchView({
 
       {/* Summary when all done */}
       {allFinished && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="font-medium text-gray-900 mb-1">
             {done} receipt{done !== 1 ? 's' : ''} processed
             {errors > 0 ? `, ${errors} failed` : ''}
@@ -315,7 +315,7 @@ export default function UploadPage({ session }: Props) {
       } else {
         updateItem(item.id, {
           status: 'error',
-          error: err instanceof Error ? err.message : 'Upload failed',
+          error: 'Upload failed — please try again. If the problem persists, contact support.',
         })
       }
     }
@@ -338,7 +338,7 @@ export default function UploadPage({ session }: Props) {
         } catch (err: unknown) {
           updateItem(item.id, {
             status: 'error',
-            error: err instanceof Error ? err.message : 'Upload failed',
+            error: 'Upload failed — please try again. If the problem persists, contact support.',
           })
         }
       }),
@@ -425,7 +425,7 @@ export default function UploadPage({ session }: Props) {
             </button>
             <button
               onClick={() => setCameraMode(true)}
-              className="w-full bg-white border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-all"
+              className="w-full bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-all"
             >
               <span className="text-4xl">📷</span>
               <div className="text-center">
@@ -436,7 +436,7 @@ export default function UploadPage({ session }: Props) {
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-white border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-all"
+              className="w-full bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-10 flex flex-col items-center gap-3 hover:border-green-400 hover:bg-green-50 transition-all"
             >
               <span className="text-4xl">🖼️</span>
               <div className="text-center">

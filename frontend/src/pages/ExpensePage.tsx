@@ -391,7 +391,7 @@ export default function ExpensePage({ session }: Props) {
       <main className="max-w-2xl mx-auto px-4 py-6 pb-20 space-y-4">
         {/* Receipt image */}
         {receiptUrl && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <img
               src={receiptUrl}
               alt={`Receipt from ${expense.merchant_name ?? 'merchant'}`}
@@ -516,7 +516,7 @@ export default function ExpensePage({ session }: Props) {
         )}
 
         {/* Extracted fields */}
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100">
           <div className="px-4 py-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
               Extracted from receipt
@@ -847,7 +847,7 @@ export default function ExpensePage({ session }: Props) {
                       ＋ Add to trip
                     </button>
                     {showGroupDropdown && (
-                      <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-xl border border-gray-200 shadow-lg z-30 overflow-hidden">
+                      <div className="absolute left-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-30 overflow-hidden">
                         {creatingGroup ? (
                           <div className="p-3">
                             <input

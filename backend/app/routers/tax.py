@@ -33,15 +33,16 @@ def get_quarterly_estimate(
     # ── 1. User profile ──────────────────────────────────────────────────────
     profile_result = (
         admin.table("users")
-        .select("country, province, state, default_currency")
+        .select("country, region, default_currency")
         .eq("id", user_id)
         .limit(1)
         .execute()
     )
     profile = profile_result.data[0] if profile_result.data else {}
     country = (profile.get("country") or "CA").upper()
-    province = profile.get("province") or "ON"
-    state = profile.get("state") or "NY"
+    region = profile.get("region") or ("ON" if country == "CA" else "NY")
+    province = region  # alias for CRA estimator
+    state = region     # alias for IRS estimator
 
     # ── 2. Sum confirmed deductible expenses ──────────────────────────────────
     expenses_result = (
