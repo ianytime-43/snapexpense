@@ -15,10 +15,10 @@ interface Props {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  draft:      'bg-yellow-100 text-yellow-700',
-  confirmed:  'bg-green-100 text-green-700',
-  submitted:  'bg-blue-100 text-blue-700',
-  reimbursed: 'bg-gray-100 text-gray-600',
+  draft:      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  confirmed:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  submitted:  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  reimbursed: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -60,7 +60,7 @@ function ExpenseCard({ expense }: { expense: Expense }) {
               {STATUS_LABELS[expense.status] ?? expense.status}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-400 dark:text-gray-500 flex-wrap">
+          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
             <span>
               {expense.expense_date ??
                 new Date(expense.created_at).toLocaleDateString('en-CA')}
@@ -404,6 +404,9 @@ export default function DashboardPage({ session }: Props) {
                 {formatCAD(pendingTotal)}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">{pending.length} {t('dashboard.to_review')}</p>
+              {pending.length > 0 && (
+                <p className="text-xs text-yellow-500 dark:text-yellow-400 mt-0.5">New imports need review</p>
+              )}
             </div>
             <button
               onClick={() => confirmed.length > 0 && navigate('/submit-session')}
@@ -581,14 +584,23 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {groupExpenses.map(expense => (
-                          <div key={expense.id} className="flex items-center gap-2">
+                          <div
+                            key={expense.id}
+                            className={`flex items-center gap-2 ${bulkMode ? 'cursor-pointer' : ''}`}
+                            onClick={bulkMode ? () => toggleSelect(expense.id) : undefined}
+                          >
                             {bulkMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(expense.id)}
-                                onChange={() => toggleSelect(expense.id)}
-                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
-                              />
+                              <div className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                                selectedIds.has(expense.id)
+                                  ? 'bg-green-600 border-green-600'
+                                  : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {selectedIds.has(expense.id) && (
+                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
                             )}
                             <div className="flex-1">
                               <SwipeableCard
@@ -618,14 +630,23 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {ungrouped.map(expense => (
-                          <div key={expense.id} className="flex items-center gap-2">
+                          <div
+                            key={expense.id}
+                            className={`flex items-center gap-2 ${bulkMode ? 'cursor-pointer' : ''}`}
+                            onClick={bulkMode ? () => toggleSelect(expense.id) : undefined}
+                          >
                             {bulkMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(expense.id)}
-                                onChange={() => toggleSelect(expense.id)}
-                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
-                              />
+                              <div className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                                selectedIds.has(expense.id)
+                                  ? 'bg-green-600 border-green-600'
+                                  : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {selectedIds.has(expense.id) && (
+                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
                             )}
                             <div className="flex-1">
                               <SwipeableCard
@@ -660,14 +681,23 @@ export default function DashboardPage({ session }: Props) {
                       </div>
                       <div className="space-y-2">
                         {items.map((expense) => (
-                          <div key={expense.id} className="flex items-center gap-2">
+                          <div
+                            key={expense.id}
+                            className={`flex items-center gap-2 ${bulkMode ? 'cursor-pointer' : ''}`}
+                            onClick={bulkMode ? () => toggleSelect(expense.id) : undefined}
+                          >
                             {bulkMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(expense.id)}
-                                onChange={() => toggleSelect(expense.id)}
-                                className="shrink-0 w-5 h-5 rounded border-gray-300 text-green-600"
-                              />
+                              <div className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                                selectedIds.has(expense.id)
+                                  ? 'bg-green-600 border-green-600'
+                                  : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {selectedIds.has(expense.id) && (
+                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
                             )}
                             <div className="flex-1">
                               <SwipeableCard

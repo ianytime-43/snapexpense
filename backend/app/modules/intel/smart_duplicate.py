@@ -20,8 +20,8 @@ def find_potential_duplicates(admin: Client, user_id: str, expense: dict) -> lis
             admin.table("expenses")
             .select("id, merchant_name, amount_total, expense_date, status")
             .eq("user_id", user_id)
-            .gte("expense_date", _offset_date(date, -2))
-            .lte("expense_date", _offset_date(date, 2))
+            .gte("expense_date", _offset_date(date, -1))
+            .lte("expense_date", _offset_date(date, 1))
             .execute()
         )
     except Exception:
@@ -35,13 +35,14 @@ def find_potential_duplicates(admin: Client, user_id: str, expense: dict) -> lis
         e_amount = float(e.get("amount_total") or 0)
         if abs(e_amount - float(amount)) < 0.01:  # Same amount
             e_merchant = (e.get("merchant_name") or "").upper()
-            if not merchant or not e_merchant or merchant.upper()[:5] == e_merchant[:5]:
+            # Require both merchant AND amount to match (first 8 chars of merchant)
+            if merchant and e_merchant and merchant.upper()[:8] == e_merchant[:8]:
                 duplicates.append({
                     "id": e["id"],
                     "merchant_name": e["merchant_name"],
                     "amount_total": e_amount,
                     "expense_date": e["expense_date"],
-                    "reason": f"Same amount (${amount}) within 2 days" + (f", similar merchant" if merchant else ""),
+                    "reason": f"Same amount (${amount}) within 1 day, similar merchant",
                 })
 
     return duplicates

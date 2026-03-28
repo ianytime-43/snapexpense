@@ -367,7 +367,7 @@ def process_receipt_bytes(
         from app.modules.intel.smart_duplicate import find_potential_duplicates
 
         duplicates = find_potential_duplicates(admin, user_id, expense_data)
-        if duplicates:
+        if duplicates and len(duplicates) >= 2:  # Only flag when clearly duplicate
             logger.warning(
                 "Potential duplicate detected for expense=%s: %d matches — %s",
                 expense_id, len(duplicates),

@@ -787,53 +787,51 @@ export default function SettingsPage({ session }: Props) {
         </div>
 
         {/* Gmail setup instructions */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
             Set up auto-forwarding in Gmail
           </h2>
-          <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-              Open Gmail → Settings (gear icon) → <strong>See all settings</strong>
+          <ol className="space-y-1.5 text-sm">
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">1</span>
+              <span className="text-gray-600 dark:text-gray-300">Open Gmail → Settings (gear icon) → <strong>See all settings</strong></span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-              Go to <strong>Filters and Blocked Addresses</strong> → <strong>Create a new filter</strong>
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">2</span>
+              <span className="text-gray-600 dark:text-gray-300">Go to <strong>Filters and Blocked Addresses</strong> → <strong>Create a new filter</strong></span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-              In the <strong>From</strong> field, enter the senders you want to forward
-              (e.g. <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">receipts@uber.com</code>)
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">3</span>
+              <span className="text-gray-600 dark:text-gray-300">In the <strong>From</strong> field, enter senders (e.g. <code className="bg-gray-100 dark:bg-gray-700 dark:text-gray-300 px-1 rounded text-xs">receipts@uber.com</code>)</span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-              Click <strong>Create filter</strong>, then check <strong>Forward it to</strong> and
-              paste your SnapExpense address above
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">4</span>
+              <span className="text-gray-600 dark:text-gray-300">Click <strong>Create filter</strong>, check <strong>Forward it to</strong>, paste your SnapExpense address</span>
             </li>
           </ol>
         </div>
 
         {/* Outlook setup instructions */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
             Set up auto-forwarding in Outlook
           </h2>
-          <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-              Open Outlook → Settings → <strong>View all Outlook settings</strong>
+          <ol className="space-y-1.5 text-sm">
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">1</span>
+              <span className="text-gray-600 dark:text-gray-300">Open Outlook → Settings → <strong>View all Outlook settings</strong></span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-              Go to <strong>Mail → Rules</strong> → <strong>Add new rule</strong>
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">2</span>
+              <span className="text-gray-600 dark:text-gray-300">Go to <strong>Mail → Rules</strong> → <strong>Add new rule</strong></span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-              Set condition: <strong>From</strong> → enter vendor email addresses
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">3</span>
+              <span className="text-gray-600 dark:text-gray-300">Set condition: <strong>From</strong> → enter vendor email addresses</span>
             </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-              Set action: <strong>Forward to</strong> → paste your SnapExpense address
+            <li className="flex gap-2 items-start">
+              <span className="shrink-0 w-5 h-5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">4</span>
+              <span className="text-gray-600 dark:text-gray-300">Set action: <strong>Forward to</strong> → paste your SnapExpense address</span>
             </li>
           </ol>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
