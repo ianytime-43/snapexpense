@@ -8,11 +8,37 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+import httpx
+
 from ..auth import get_current_user
+from ..config import settings
 from ..database import get_supabase_admin
 from ..services.gmail_scanner import scan_gmail_metadata
 
 logger = logging.getLogger(__name__)
+
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+
+
+async def _refresh_google_token(refresh_token: str) -> str | None:
+    """Refresh an expired Google access token using the refresh token."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(GOOGLE_TOKEN_URL, data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": settings.google_oauth_client_id,
+                "client_secret": settings.google_oauth_client_secret,
+            }, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("access_token")
+            else:
+                logger.warning(f"Token refresh failed: {resp.status_code} {resp.text[:200]}")
+                return None
+    except Exception as e:
+        logger.warning(f"Token refresh error: {e}")
+        return None
 router = APIRouter(prefix="/gmail", tags=["gmail"])
 
 
@@ -40,14 +66,31 @@ async def scan_gmail(
 
     token_data = user_row.data["google_calendar_token"]
     access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
 
     if not access_token:
         raise HTTPException(status_code=400, detail="Google token expired. Reconnect in Settings.")
 
+    # Try scanning with current token
     results = await scan_gmail_metadata(
         access_token=access_token,
         months=body.months,
     )
+
+    # If got a 401 error, try refreshing the token
+    if results and len(results) == 1 and results[0].get("email_id") == "error" and "401" in results[0].get("subject", ""):
+        if refresh_token:
+            new_token = await _refresh_google_token(refresh_token)
+            if new_token:
+                # Save refreshed token
+                token_data["access_token"] = new_token
+                admin.table("users").update({"google_calendar_token": token_data}).eq("id", user_id).execute()
+                # Retry with new token
+                results = await scan_gmail_metadata(access_token=new_token, months=body.months)
+            else:
+                raise HTTPException(400, "Google token expired. Please disconnect and reconnect Google in Settings.")
+        else:
+            raise HTTPException(400, "Google token expired. Please disconnect and reconnect Google in Settings.")
 
     return {"results": results, "count": len(results)}
 
