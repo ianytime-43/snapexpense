@@ -507,11 +507,11 @@ export default function ExpensePage({ session }: Props) {
 
         {/* Alcohol notice */}
         {expense.alcohol_total != null && expense.alcohol_total > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
-            <p className="text-amber-700 font-medium">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 text-sm">
+            <p className="text-amber-700 dark:text-amber-300 font-medium">
               Alcohol detected: {formatCAD(expense.alcohol_total, expense.currency)}
             </p>
-            <p className="text-amber-600 text-xs mt-1">
+            <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">
               Meal expenses including alcohol are 50% deductible under CRA/IRS rules.
             </p>
           </div>
@@ -542,11 +542,11 @@ export default function ExpensePage({ session }: Props) {
                 <div>
                   <span className="text-sm text-gray-900 font-medium">
                     {expense.merchant_name ?? (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-400 dark:text-gray-500">—</span>
                     )}
                   </span>
                   {expense.location_jurisdiction && (
-                    <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                    <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-200 px-1.5 py-0.5 rounded-full">
                       {expense.location_jurisdiction}
                     </span>
                   )}
@@ -564,7 +564,7 @@ export default function ExpensePage({ session }: Props) {
               ) : (
                 <span className="text-sm text-gray-900">
                   {expense.expense_date ?? (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-gray-400 dark:text-gray-500">—</span>
                   )}
                 </span>
               )}
@@ -602,7 +602,7 @@ export default function ExpensePage({ session }: Props) {
                     {expense.amount_total != null ? (
                       `$${expense.amount_total.toFixed(2)} ${expense.currency}`
                     ) : (
-                      <span className="text-gray-400 font-normal">—</span>
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">—</span>
                     )}
                   </span>
                   {expense.converted_amount != null && expense.converted_currency && expense.converted_currency !== expense.currency && (
@@ -641,7 +641,7 @@ export default function ExpensePage({ session }: Props) {
                     {expense.amount_tax != null ? (
                       `$${expense.amount_tax.toFixed(2)}`
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-400 dark:text-gray-500">—</span>
                     )}
                   </span>
                 )}
@@ -674,14 +674,14 @@ export default function ExpensePage({ session }: Props) {
                     {expense.amount_tip != null ? (
                       `$${expense.amount_tip.toFixed(2)}`
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-400 dark:text-gray-500">—</span>
                     )}
                   </span>
                 )}
               </Row>
             )}
             {expense.amount_tip != null && expense.amount_tip > 0 && (
-              <p className="text-xs text-gray-400 dark:text-forest-300 mt-1 pb-2">
+              <p className="text-xs text-gray-500 dark:text-gray-300 mt-1 pb-2">
                 Tips on business meals are {expense.expense_tag === 'personal' ? 'not deductible' : '50% deductible (CRA/IRS)'}.
               </p>
             )}
@@ -716,8 +716,8 @@ export default function ExpensePage({ session }: Props) {
                   {expense.payment_method
                     ? (PAYMENT_METHODS.find(
                         (m) => m.value === expense.payment_method,
-                      )?.label ?? <span className="text-gray-400">—</span>)
-                    : <span className="text-gray-400">—</span>}
+                      )?.label ?? <span className="text-gray-400 dark:text-gray-500">—</span>)
+                    : <span className="text-gray-400 dark:text-gray-500">—</span>}
                   {expense.card_last_four && (
                     <span className="text-gray-400 ml-1">
                       ····{expense.card_last_four}
@@ -748,7 +748,7 @@ export default function ExpensePage({ session }: Props) {
                 </select>
               ) : (
                 <span className="text-sm text-gray-900">
-                  {expense.category ?? <span className="text-gray-400">—</span>}
+                  {expense.category ?? <span className="text-gray-400 dark:text-gray-500">—</span>}
                 </span>
               )}
             </Row>
@@ -763,7 +763,7 @@ export default function ExpensePage({ session }: Props) {
               ) : (
                 <span className="text-sm text-gray-900">
                   {expense.client_name ?? (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-gray-400 dark:text-gray-500">—</span>
                   )}
                 </span>
               )}
@@ -780,7 +780,7 @@ export default function ExpensePage({ session }: Props) {
               ) : (
                 <span className="text-sm text-gray-900">
                   {expense.business_purpose ?? (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-gray-400 dark:text-gray-500">—</span>
                   )}
                 </span>
               )}
@@ -796,12 +796,12 @@ export default function ExpensePage({ session }: Props) {
                 />
               ) : (
                 <span className="text-sm text-gray-900">
-                  {expense.notes ?? <span className="text-gray-400">—</span>}
+                  {expense.notes ?? <span className="text-gray-400 dark:text-gray-500">—</span>}
                 </span>
               )}
             </Row>
             {expense.category && !['Meals & Entertainment', 'Travel', 'Transportation', 'Software'].includes(expense.category) && expense.expense_date && (
-              <p className="text-xs text-gray-400 dark:text-forest-300 py-2">
+              <p className="text-xs text-gray-500 dark:text-gray-300 py-2">
                 Check store return policy — most retailers allow 30-90 day returns.
               </p>
             )}
@@ -851,7 +851,7 @@ export default function ExpensePage({ session }: Props) {
                   <div className="relative" ref={groupDropdownRef}>
                     <button
                       onClick={() => setShowGroupDropdown(!showGroupDropdown)}
-                      className="text-xs text-green-600 hover:text-green-700 font-medium border border-green-200 rounded-lg px-2 py-1 hover:bg-green-50 transition-colors"
+                      className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 font-medium border border-green-200 dark:border-green-700 rounded-lg px-2 py-1 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
                     >
                       ＋ Add to trip
                     </button>
