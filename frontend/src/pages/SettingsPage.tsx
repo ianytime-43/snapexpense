@@ -590,8 +590,7 @@ export default function SettingsPage({ session }: Props) {
           )}
         </div>
 
-        {/* Outlook Calendar — hidden until Microsoft OAuth app is configured */}
-        {false && (
+        {/* Outlook Calendar */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
             Outlook Calendar
@@ -630,7 +629,6 @@ export default function SettingsPage({ session }: Props) {
             </button>
           )}
         </div>
-        )}
 
         {/* Email Scanning card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -662,8 +660,7 @@ export default function SettingsPage({ session }: Props) {
                 </button>
               </div>
             </div>
-            {/* Outlook scan — hidden until Microsoft OAuth app is configured */}
-            {false && (
+            {/* Outlook scan */}
             <div className="flex-1 space-y-2">
               <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">Outlook</p>
               <div className="flex gap-2">
@@ -683,7 +680,6 @@ export default function SettingsPage({ session }: Props) {
                 </button>
               </div>
             </div>
-            )}
           </div>
 
           {scanning && (
