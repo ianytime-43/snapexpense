@@ -160,7 +160,8 @@ export default function DashboardPage({ session }: Props) {
     setExportError(null)
     try {
       const params = new URLSearchParams({ start_date: startDate, end_date: endDate })
-      const response = await fetch(`/api/export/${format}?${params}`, {
+      const apiUrl = import.meta.env.VITE_API_URL ?? ''
+      const response = await fetch(`${apiUrl}/api/export/${format}?${params}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (!response.ok) {
@@ -173,10 +174,15 @@ export default function DashboardPage({ session }: Props) {
       a.href = url
       const ext = format === 'excel' ? 'xlsx' : format
       a.download = `expenses_${startDate}_to_${endDate}.${ext}`
+      a.style.display = 'none'
       document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => {
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }, 1000)
+      }, 100)
       setShowExport(false)
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export failed')

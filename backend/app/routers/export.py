@@ -39,23 +39,32 @@ COLUMNS: list[tuple[str, str]] = [
     ("status",           "Status"),
 ]
 
-EXPORT_STATUSES = {"confirmed", "submitted", "reimbursed"}
+EXPORT_STATUSES = {"draft", "confirmed", "submitted", "reimbursed"}
 
 
 # ── shared helpers ─────────────────────────────────────────────────────────────
 
 def _fetch_expenses(admin, user_id: str, start_date: str, end_date: str) -> list[dict]:
-    result = (
-        admin.table("expenses")
-        .select("*")
-        .eq("user_id", user_id)
-        .gte("expense_date", start_date)
-        .lte("expense_date", end_date)
-        .in_("status", list(EXPORT_STATUSES))
-        .order("expense_date")
-        .execute()
-    )
-    return result.data or []
+    """Fetch expenses in date range. Includes all statuses and handles NULL dates."""
+    try:
+        result = (
+            admin.table("expenses")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        # Filter in Python to handle NULL dates properly
+        expenses = []
+        for e in (result.data or []):
+            ed = e.get("expense_date")
+            if ed is None or (ed >= start_date and ed <= end_date):
+                expenses.append(e)
+        # Sort by date
+        expenses.sort(key=lambda x: x.get("expense_date") or "9999")
+        return expenses
+    except Exception as exc:
+        logger.error("Export fetch failed: %s", exc)
+        return []
 
 
 def _get_user_info(admin, user_id: str) -> dict:
