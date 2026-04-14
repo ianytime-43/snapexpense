@@ -17,11 +17,19 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     mailgun_api_key: Optional[str] = None
     mailgun_domain: Optional[str] = None
+    mailgun_signing_key: Optional[str] = None
+    app_env: str = "development"  # development | staging | production
     reminder_cron_secret: Optional[str] = None
     plaid_client_id: Optional[str] = None
     plaid_secret: Optional[str] = None
     plaid_env: str = "sandbox"  # sandbox | development | production
     plaid_webhook_url: Optional[str] = None
+    # Fernet key (32 url-safe base64 bytes) used to encrypt Plaid access_tokens at rest.
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    plaid_encryption_key: Optional[str] = None
+    # Sandbox-only escape hatch to bypass JWT webhook verification for local dev.
+    # MUST remain false in production; only honored if plaid_env == "sandbox".
+    plaid_skip_webhook_verify: bool = False
 
     class Config:
         env_file = ".env"

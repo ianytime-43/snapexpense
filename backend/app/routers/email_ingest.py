@@ -17,10 +17,13 @@ Key form fields sent by Mailgun:
 We always return 200. Non-200 responses cause Mailgun to retry for 8 hours.
 """
 import hashlib
+import hmac
 import logging
+import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
+from ..config import settings
 from ..database import get_supabase_admin
 from ..services import ai_parser, pipeline
 
@@ -39,6 +42,60 @@ RECEIPT_MIME_TYPES = {
     "application/pdf",
 }
 
+# Mailgun replay window: reject webhooks older than this.
+_MAILGUN_MAX_SKEW_SECONDS = 15 * 60
+
+
+def _verify_mailgun_signature(timestamp: str, token: str, signature: str) -> tuple[bool, str]:
+    """Verify the Mailgun HMAC-SHA256 signature.
+
+    Returns (ok, reason). Reason is "" when ok.
+
+    - In production (APP_ENV=production) a missing signing key means the
+      webhook is REJECTED (fail-closed).
+    - In dev/staging a missing signing key logs a loud warning but allows
+      the request through so local testing still works.
+    """
+    signing_key = (settings.mailgun_signing_key or "").strip()
+    is_prod = (settings.app_env or "").lower() == "production"
+
+    if not signing_key:
+        if is_prod:
+            logger.error(
+                "MAILGUN SECURITY: MAILGUN_SIGNING_KEY is not set in production — "
+                "rejecting inbound webhook. Set MAILGUN_SIGNING_KEY in Railway."
+            )
+            return False, "signing key not configured"
+        logger.warning(
+            "MAILGUN SECURITY: MAILGUN_SIGNING_KEY is not set (APP_ENV=%r) — "
+            "allowing unsigned webhook in non-prod only. DO NOT ship this to prod.",
+            settings.app_env,
+        )
+        return True, ""
+
+    if not timestamp or not token or not signature:
+        return False, "missing signature fields"
+
+    # Replay protection: timestamp must be recent.
+    try:
+        ts = int(timestamp)
+    except (TypeError, ValueError):
+        return False, "timestamp not an integer"
+    now = int(time.time())
+    if abs(now - ts) > _MAILGUN_MAX_SKEW_SECONDS:
+        return False, "timestamp outside replay window"
+
+    expected = hmac.new(
+        signing_key.encode("utf-8"),
+        f"{timestamp}{token}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        return False, "signature mismatch"
+
+    return True, ""
+
 
 @router.post("/inbound")
 async def inbound_email(request: Request):
@@ -50,6 +107,15 @@ async def inbound_email(request: Request):
     except Exception as exc:
         logger.error("Failed to parse Mailgun form data: %s", exc)
         return {"status": "error"}
+
+    # Signature check MUST run before any DB work / persistence.
+    sig_timestamp = str(form.get("timestamp") or "").strip()
+    sig_token = str(form.get("token") or "").strip()
+    sig_signature = str(form.get("signature") or "").strip()
+    ok, reason = _verify_mailgun_signature(sig_timestamp, sig_token, sig_signature)
+    if not ok:
+        logger.warning("EMAIL INGEST: rejected unsigned/invalid webhook — %s", reason)
+        raise HTTPException(status_code=401, detail=f"invalid webhook signature: {reason}")
 
     recipient = str(form.get("recipient") or "").strip().lower()
     sender = str(form.get("sender") or form.get("from") or "").strip()
