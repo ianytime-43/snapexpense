@@ -17,6 +17,12 @@ from anthropic import Anthropic
 
 from ..config import settings
 from .calendar_cache import cached_row_to_google_event, read_cache, write_cache
+from .calendar_matching import (
+    match_action,
+    stamp_expiry,
+    token_is_expired,
+    total_score,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +33,7 @@ GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 # ── token management ──────────────────────────────────────────────────────────
 
 def _refresh_access_token(token_data: dict) -> dict:
-    """Exchange refresh_token for a fresh access_token. Returns updated token dict."""
+    """Exchange refresh_token for a fresh access_token. Returns merged token dict."""
     resp = httpx.post(
         GOOGLE_TOKEN_URL,
         data={
@@ -40,11 +46,15 @@ def _refresh_access_token(token_data: dict) -> dict:
     )
     resp.raise_for_status()
     new_tokens = resp.json()
-    return {**token_data, "access_token": new_tokens["access_token"]}
+    # Google rarely rotates refresh_token but persist it if present.
+    merged = {**token_data, **new_tokens}
+    if "refresh_token" not in new_tokens:
+        merged["refresh_token"] = token_data["refresh_token"]
+    return stamp_expiry(merged)
 
 
 def _get_access_token(admin, user_id: str) -> Optional[str]:
-    """Return a valid access_token for the user, refreshing if necessary."""
+    """Return a valid access_token for the user, refreshing only when needed."""
     try:
         result = (
             admin.table("users")
@@ -64,6 +74,10 @@ def _get_access_token(admin, user_id: str) -> Optional[str]:
     if not token_data or not token_data.get("refresh_token"):
         return None
 
+    # Skip refresh if the cached access_token is still valid
+    if not token_is_expired(token_data):
+        return token_data["access_token"]
+
     try:
         refreshed = _refresh_access_token(token_data)
         admin.table("users").update(
@@ -75,65 +89,9 @@ def _get_access_token(admin, user_id: str) -> Optional[str]:
         return None
 
 
-# ── scoring helpers ───────────────────────────────────────────────────────────
-
-def _score_time(event_start: datetime, expense_dt: datetime) -> float:
-    diff_minutes = abs((expense_dt - event_start).total_seconds()) / 60
-    if diff_minutes <= 30:
-        return 0.50
-    if diff_minutes <= 60:
-        return 0.40
-    if diff_minutes <= 120:
-        return 0.25
-    if diff_minutes <= 240:
-        return 0.10
-    if diff_minutes <= 480:   # up to 8h — covers tz-shifted same-day events
-        return 0.05
-    return 0.0
-
-
-def _score_location(
-    event_location: Optional[str],
-    merchant_name: Optional[str],
-    merchant_address: Optional[str],
-) -> float:
-    if not event_location:
-        return 0.0
-    loc = event_location.lower()
-    if merchant_name and merchant_name.lower() in loc:
-        return 0.30
-    if merchant_address:
-        words = [w for w in merchant_address.lower().split() if len(w) > 3]
-        if any(w in loc for w in words):
-            return 0.20
-    return 0.0
-
-
-def _score_attendees(count: int) -> float:
-    if count >= 3:
-        return 0.20
-    if count == 2:
-        return 0.15
-    if count == 1:
-        return 0.10
-    return 0.0
-
-
-BUSINESS_KEYWORDS = {
-    "dinner", "lunch", "breakfast", "brunch", "coffee", "drinks",
-    "meeting", "call", "sync", "review", "demo", "presentation",
-    "client", "customer", "partner", "vendor",
-}
-
-
-def _score_title_keywords(event_title: Optional[str]) -> float:
-    """0.30 bonus if the event title contains any recognisable business/meal keyword."""
-    if not event_title:
-        return 0.0
-    title_lower = event_title.lower()
-    if any(kw in title_lower for kw in BUSINESS_KEYWORDS):
-        return 0.30
-    return 0.0
+# ── scoring helpers ──────────────────────────────────────────────────────────
+# Scoring lives in calendar_matching.total_score() so Google + Outlook stay
+# in lock-step. This file only handles provider-specific glue (API parsing).
 
 
 def _extract_client_name(event_title: str) -> Optional[str]:
@@ -212,17 +170,23 @@ def _generate_business_purpose(
         return event_title
 
 
-def _parse_event_start(event: dict) -> Optional[datetime]:
+def _parse_event_start(event: dict) -> tuple[Optional[datetime], bool]:
+    """
+    Return (start_datetime, is_all_day). Google all-day events use 'date' (no time);
+    timed events use 'dateTime'. is_all_day controls the all-day score penalty.
+    """
     start_raw = event.get("start", {})
-    start_str = start_raw.get("dateTime") or start_raw.get("date")
-    if not start_str:
-        return None
-    try:
-        if "T" in start_str:
-            return datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-        return datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
+    if start_raw.get("dateTime"):
+        try:
+            return datetime.fromisoformat(start_raw["dateTime"].replace("Z", "+00:00")), False
+        except ValueError:
+            return None, False
+    if start_raw.get("date"):
+        try:
+            return datetime.fromisoformat(start_raw["date"]).replace(tzinfo=timezone.utc), True
+        except ValueError:
+            return None, True
+    return None, False
 
 
 # ── public API ────────────────────────────────────────────────────────────────
@@ -279,7 +243,7 @@ def get_calendar_match(
                     "timeMax": dt_max.isoformat(),
                     "singleEvents": "true",
                     "orderBy": "startTime",
-                    "maxResults": 20,
+                    "maxResults": 50,
                 },
                 timeout=10.0,
             )
@@ -309,7 +273,9 @@ def get_calendar_match(
                     "attendees_json": [
                         {"email": a["email"]}
                         for a in e.get("attendees", [])
-                        if a.get("email") and not a["email"].endswith("calendar.google.com")
+                        if a.get("email")
+                        and not a["email"].endswith("calendar.google.com")
+                        and not a.get("resource", False)
                     ],
                 }
                 for e in items
@@ -321,26 +287,44 @@ def get_calendar_match(
 
     best: Optional[dict] = None
     best_score = 0.0
+    seen_recurring: set[str] = set()  # dedupe recurring instances by series id
 
     for event in items:
-        event_start = _parse_event_start(event)
+        event_start, is_all_day = _parse_event_start(event)
         if not event_start:
             continue
         if event_start.tzinfo is None:
             event_start = event_start.replace(tzinfo=timezone.utc)
 
+        # Recurring-event dedupe — keep the instance closest to expense_dt.
+        # Google sets recurringEventId on each expanded instance.
+        recurring_id = event.get("recurringEventId")
+        if recurring_id:
+            if recurring_id in seen_recurring:
+                continue
+            seen_recurring.add(recurring_id)
+
         raw_attendees = event.get("attendees", [])
+        # Filter only resource calendars — real Google Workspace attendees use
+        # standard email domains so we must NOT exclude them.
         attendee_emails = [
             a["email"]
             for a in raw_attendees
-            if a.get("email") and not a["email"].endswith("calendar.google.com")
+            if a.get("email")
+            and not a["email"].endswith("calendar.google.com")
+            and not a.get("resource", False)
         ]
 
-        t_score = _score_time(event_start, expense_dt)
-        l_score = _score_location(event.get("location"), merchant_name, merchant_address)
-        a_score = _score_attendees(len(attendee_emails))
-        k_score = _score_title_keywords(event.get("summary"))
-        score = t_score + l_score + a_score + k_score
+        score = total_score(
+            event_start=event_start,
+            expense_dt=expense_dt,
+            event_location=event.get("location"),
+            merchant_name=merchant_name,
+            merchant_address=merchant_address,
+            attendee_count=len(attendee_emails),
+            event_title=event.get("summary"),
+            is_all_day=is_all_day,
+        )
 
         if score > best_score:
             best_score = score
@@ -354,13 +338,9 @@ def get_calendar_match(
                 "confidence": round(score, 3),
             }
 
-    if best is None or best_score < 0.25:
+    action = match_action(best_score) if best else None
+    if best is None or action is None:
         return None
-
-    if best_score >= 0.75:
-        action = "auto_apply"
-    else:
-        action = "suggest"
 
     # Extract client name and generate purpose from the winning event using Claude Haiku
     best["client_name"] = _extract_client_name(best["event_title"])

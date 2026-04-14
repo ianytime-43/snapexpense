@@ -19,6 +19,7 @@ from fastapi.responses import RedirectResponse
 from ..auth import get_current_user
 from ..config import settings
 from ..database import get_supabase_admin
+from ..services.calendar_matching import stamp_expiry
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ def calendar_callback(
     except Exception:
         pass  # email display is non-critical
 
-    token_to_save = {**token_data}
+    token_to_save = stamp_expiry({**token_data})
     if google_email:
         token_to_save["google_email"] = google_email
 

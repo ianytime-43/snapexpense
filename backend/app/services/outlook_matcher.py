@@ -16,23 +16,27 @@ from anthropic import Anthropic
 
 from ..config import settings
 from .calendar_cache import cached_row_to_ms_event, read_cache, write_cache
+from .calendar_matching import (
+    match_action,
+    stamp_expiry,
+    token_is_expired,
+    total_score,
+)
 
 logger = logging.getLogger(__name__)
 
 MS_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 GRAPH_API = "https://graph.microsoft.com/v1.0"
-
-BUSINESS_KEYWORDS = {
-    "dinner", "lunch", "breakfast", "brunch", "coffee", "drinks",
-    "meeting", "call", "sync", "review", "demo", "presentation",
-    "client", "customer", "partner", "vendor",
-}
+MS_REFRESH_SCOPE = (
+    "https://graph.microsoft.com/Calendars.Read "
+    "offline_access User.Read"
+)
 
 
 # ── token management ──────────────────────────────────────────────────────────
 
 def _refresh_access_token(token_data: dict) -> dict:
-    """Exchange refresh_token for a fresh access_token. Returns updated token dict."""
+    """Exchange refresh_token for a fresh access_token. Returns merged token dict."""
     resp = httpx.post(
         MS_TOKEN_URL,
         data={
@@ -40,17 +44,22 @@ def _refresh_access_token(token_data: dict) -> dict:
             "client_secret": settings.microsoft_oauth_client_secret,
             "refresh_token": token_data["refresh_token"],
             "grant_type": "refresh_token",
-            "scope": "https://graph.microsoft.com/Calendars.Read offline_access User.Read",
+            "scope": MS_REFRESH_SCOPE,
         },
         timeout=10.0,
     )
     resp.raise_for_status()
     new_tokens = resp.json()
-    return {**token_data, "access_token": new_tokens["access_token"]}
+    # Microsoft routinely rotates refresh_token — preserve the new one when
+    # present, fall back to the existing one otherwise.
+    merged = {**token_data, **new_tokens}
+    if "refresh_token" not in new_tokens:
+        merged["refresh_token"] = token_data["refresh_token"]
+    return stamp_expiry(merged)
 
 
 def _get_access_token(admin, user_id: str) -> Optional[str]:
-    """Return a valid access_token for the user, refreshing if necessary."""
+    """Return a valid access_token for the user, refreshing only when needed."""
     try:
         result = (
             admin.table("users")
@@ -70,6 +79,9 @@ def _get_access_token(admin, user_id: str) -> Optional[str]:
     if not token_data or not token_data.get("refresh_token"):
         return None
 
+    if not token_is_expired(token_data):
+        return token_data["access_token"]
+
     try:
         refreshed = _refresh_access_token(token_data)
         admin.table("users").update(
@@ -81,70 +93,21 @@ def _get_access_token(admin, user_id: str) -> Optional[str]:
         return None
 
 
-# ── scoring helpers ───────────────────────────────────────────────────────────
+# ── event parsing ─────────────────────────────────────────────────────────────
 
-def _score_time(event_start: datetime, expense_dt: datetime) -> float:
-    diff_minutes = abs((expense_dt - event_start).total_seconds()) / 60
-    if diff_minutes <= 30:
-        return 0.50
-    if diff_minutes <= 60:
-        return 0.40
-    if diff_minutes <= 120:
-        return 0.25
-    if diff_minutes <= 240:
-        return 0.10
-    if diff_minutes <= 480:
-        return 0.05
-    return 0.0
-
-
-def _score_location(
-    event_location: Optional[str],
-    merchant_name: Optional[str],
-    merchant_address: Optional[str],
-) -> float:
-    if not event_location:
-        return 0.0
-    loc = event_location.lower()
-    if merchant_name and merchant_name.lower() in loc:
-        return 0.30
-    if merchant_address:
-        words = [w for w in merchant_address.lower().split() if len(w) > 3]
-        if any(w in loc for w in words):
-            return 0.20
-    return 0.0
-
-
-def _score_attendees(count: int) -> float:
-    if count >= 3:
-        return 0.20
-    if count == 2:
-        return 0.15
-    if count == 1:
-        return 0.10
-    return 0.0
-
-
-def _score_title_keywords(event_title: Optional[str]) -> float:
-    if not event_title:
-        return 0.0
-    if any(kw in event_title.lower() for kw in BUSINESS_KEYWORDS):
-        return 0.30
-    return 0.0
-
-
-def _parse_event_start(event: dict) -> Optional[datetime]:
+def _parse_event_start(event: dict) -> tuple[Optional[datetime], bool]:
+    """Return (start_datetime, is_all_day). Graph events expose both isAllDay + start/end."""
+    is_all_day = bool(event.get("isAllDay"))
     start_raw = event.get("start", {})
     start_str = start_raw.get("dateTime") or start_raw.get("date")
     if not start_str:
-        return None
+        return None, is_all_day
     try:
-        # Graph API returns ISO 8601; may or may not have tz offset
         if "T" in start_str:
-            return datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-        return datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
+            return datetime.fromisoformat(start_str.replace("Z", "+00:00")), is_all_day
+        return datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc), is_all_day
     except ValueError:
-        return None
+        return None, is_all_day
 
 
 # ── Claude Haiku helpers (shared logic, independent calls) ────────────────────
@@ -269,8 +232,8 @@ def get_outlook_match(
                 params={
                     "startDateTime": dt_min.isoformat(),
                     "endDateTime": dt_max.isoformat(),
-                    "$select": "id,subject,start,end,location,attendees",
-                    "$top": "20",
+                    "$select": "id,subject,start,end,location,attendees,isAllDay,seriesMasterId,type",
+                    "$top": "50",
                     "$orderby": "start/dateTime",
                 },
                 timeout=10.0,
@@ -298,11 +261,14 @@ def get_outlook_match(
                         e.get("start", {}).get("dateTime")
                         or e.get("start", {}).get("date", "")
                     ),
+                    # Graph attendees: exclude resource-mailbox attendees (rooms/equipment)
+                    # but keep ALL human attendees regardless of email domain — the
+                    # previous .endswith("microsoft.com") filter excluded real users.
                     "attendees_json": [
                         {"email": a["emailAddress"]["address"]}
                         for a in e.get("attendees", [])
                         if a.get("emailAddress", {}).get("address")
-                        and not a["emailAddress"]["address"].endswith("microsoft.com")
+                        and a.get("type") != "resource"
                     ],
                 }
                 for e in items
@@ -314,48 +280,60 @@ def get_outlook_match(
 
     best: Optional[dict] = None
     best_score = 0.0
+    seen_recurring: set[str] = set()
 
     for event in items:
-        event_start = _parse_event_start(event)
+        event_start, is_all_day = _parse_event_start(event)
         if not event_start:
             continue
         if event_start.tzinfo is None:
             event_start = event_start.replace(tzinfo=timezone.utc)
 
-        # Graph attendees: [{"emailAddress": {"address": ..., "name": ...}, "type": ...}]
+        # Recurring-event dedupe — Graph populates seriesMasterId on instances
+        series_id = event.get("seriesMasterId")
+        if series_id:
+            if series_id in seen_recurring:
+                continue
+            seen_recurring.add(series_id)
+
+        # Graph attendees: keep all humans, exclude resource-mailbox entries.
         raw_attendees = event.get("attendees", [])
         attendee_emails = [
             a["emailAddress"]["address"]
             for a in raw_attendees
             if a.get("emailAddress", {}).get("address")
-            and not a["emailAddress"]["address"].endswith("microsoft.com")
+            and a.get("type") != "resource"
         ]
 
-        location = event.get("location", {}).get("displayName")
+        location = (event.get("location") or {}).get("displayName")
         title = event.get("subject") or ""
 
-        t_score = _score_time(event_start, expense_dt)
-        l_score = _score_location(location, merchant_name, merchant_address)
-        a_score = _score_attendees(len(attendee_emails))
-        k_score = _score_title_keywords(title)
-        score = t_score + l_score + a_score + k_score
+        score = total_score(
+            event_start=event_start,
+            expense_dt=expense_dt,
+            event_location=location,
+            merchant_name=merchant_name,
+            merchant_address=merchant_address,
+            attendee_count=len(attendee_emails),
+            event_title=title,
+            is_all_day=is_all_day,
+        )
 
         if score > best_score:
             best_score = score
             best = {
                 "event_id": event.get("id"),
                 "event_title": title,
-                "event_location": event.get("location", {}).get("displayName"),
+                "event_location": location,
                 "client_name": None,
                 "business_purpose": title,
                 "attendees": [{"email": e} for e in attendee_emails],
                 "confidence": round(score, 3),
             }
 
-    if best is None or best_score < 0.25:
+    action = match_action(best_score) if best else None
+    if best is None or action is None:
         return None
-
-    action = "auto_apply" if best_score >= 0.75 else "suggest"
 
     best["client_name"] = _extract_client_name(best["event_title"])
     best["business_purpose"] = _generate_business_purpose(
