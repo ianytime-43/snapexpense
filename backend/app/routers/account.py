@@ -29,7 +29,8 @@ def export_my_data(current_user: dict = Depends(get_current_user)):
     if profile.data:
         # Remove sensitive tokens
         safe_profile = {k: v for k, v in profile.data.items()
-                       if k not in ("google_calendar_token", "microsoft_outlook_token")}
+                       if k not in ("google_calendar_token", "outlook_calendar_token",
+                                    "microsoft_outlook_token")}
         data["profile"] = safe_profile
 
     # Expenses
