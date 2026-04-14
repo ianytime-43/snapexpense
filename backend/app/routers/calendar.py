@@ -30,7 +30,10 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 CALENDAR_SCOPE = " ".join([
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/gmail.readonly",
+    # Metadata-only at launch (subject/sender/date headers). Full body reads
+    # require CASA assessment ($500-$25K); deferred to Wave 2. Users with the
+    # legacy gmail.readonly grant will downgrade on next reconnect.
+    "https://www.googleapis.com/auth/gmail.metadata",
 ])
 
 

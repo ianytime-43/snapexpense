@@ -1,6 +1,15 @@
 """
 Gmail receipt scanning endpoint.
-Uses metadata-only scope — reads subject + sender, NOT email body.
+
+Launch posture (pre-CASA): METADATA-ONLY.
+We use the `https://www.googleapis.com/auth/gmail.metadata` OAuth scope, which
+permits reading only the Subject / From / Date headers via format=metadata.
+Reading message bodies or attachments requires `gmail.readonly` + a CASA
+assessment ($500-$25K) — deferred to Wave 2.
+
+The `/scan` endpoint lists receipt-likely emails (metadata only). The `/import`
+endpoint is intentionally disabled: users should forward the email to their
+Mailgun address for auto-import until full access is unlocked.
 """
 
 import logging
@@ -108,13 +117,31 @@ async def import_gmail_receipt(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Import a Gmail email as an expense.
-    Fetches the email body, runs it through AI parser, creates expense.
+    Auto-import from Gmail body is disabled at launch (metadata-only scope).
+
+    To import a receipt, the user should forward the email to their SnapExpense
+    Mailgun address — the inbound pipeline handles parsing. We return 501 here
+    rather than silently failing so the frontend can show a clear hint.
     """
+    # Avoid unused-parameter warnings while keeping the signature stable for
+    # future Wave 2 re-enablement.
+    _ = body
+    _ = current_user
+    raise HTTPException(
+        status_code=501,
+        detail=(
+            "Gmail auto-import is not available at launch (metadata-only scope). "
+            "Forward the email to your SnapExpense address to import it."
+        ),
+    )
+
+
+# The body-fetch path below is retained (dead) for reference when CASA is
+# complete and the import endpoint is re-enabled. It is NOT reachable.
+async def _disabled_legacy_import_body(body, current_user):  # pragma: no cover
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
 
-    # Get user's Google OAuth token
     user_row = admin.table("users").select("google_calendar_token").eq("id", user_id).single().execute()
     if not user_row.data or not user_row.data.get("google_calendar_token"):
         raise HTTPException(status_code=400, detail="Google account not connected.")
@@ -129,7 +156,6 @@ async def import_gmail_receipt(
 
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch full email
             resp = await client.get(
                 f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{body.email_id}",
                 params={"format": "full"},

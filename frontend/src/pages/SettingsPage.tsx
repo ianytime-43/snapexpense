@@ -20,7 +20,6 @@ import {
   getOutlookStatus,
   inviteAccountant,
   revokeAccountant,
-  importGmailReceipt,
   scanGmail,
   scanOutlook,
   updateMe,
@@ -60,8 +59,6 @@ export default function SettingsPage({ session }: Props) {
   const [scanResults, setScanResults] = useState<EmailScanResult[]>([])
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
-  const [importedIds, setImportedIds] = useState<Set<string>>(new Set())
-  const [importingId, setImportingId] = useState<string | null>(null)
   const [scanSource, setScanSource] = useState<'gmail' | 'outlook' | null>(null)
   const [showForwarding, setShowForwarding] = useState(false)
   const [integrationConnections, setIntegrationConnections] = useState<IntegrationConnection[]>([])
@@ -258,9 +255,11 @@ export default function SettingsPage({ session }: Props) {
   const handleEmailScan = async (source: 'gmail' | 'outlook', months: number) => {
     if (!confirm(
       'SnapExpense will search your inbox for:\n\n' +
-      '✓ Receipts from known vendors (Uber, Lyft, airlines, hotels, etc.)\n' +
-      '✓ Emails with subjects containing "invoice", "receipt", "payment confirmation", etc.\n\n' +
-      'We will NOT read any other emails. Only email subject and sender are accessed.\n\n' +
+      '- Receipts from known vendors (Uber, Lyft, airlines, hotels, etc.)\n' +
+      '- Emails with subjects like "invoice", "receipt", "payment confirmation"\n\n' +
+      'Metadata scan only at launch: we can read the Subject, Sender, and Date ' +
+      'headers — never the body or attachments. To import a receipt, forward it ' +
+      'to your SnapExpense address.\n\n' +
       'Continue?'
     )) return
 
@@ -713,7 +712,7 @@ export default function SettingsPage({ session }: Props) {
           {scanResults.length > 0 && (
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Found {scanResults.length} receipt/invoice emails
+                Found {scanResults.length} receipt-likely emails
               </p>
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {scanResults.map((r) => (
@@ -724,32 +723,14 @@ export default function SettingsPage({ session }: Props) {
                         {r.sender} · {r.date ? new Date(r.date).toLocaleDateString() : ''}
                       </p>
                     </div>
-                    {importedIds.has(r.email_id) ? (
-                      <span className="text-xs text-green-600 font-medium shrink-0">Imported</span>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          setImportingId(r.email_id)
-                          try {
-                            await importGmailReceipt(session.access_token, r.email_id, r.subject, r.sender, r.date)
-                            setImportedIds(prev => new Set(prev).add(r.email_id))
-                          } catch {
-                            alert('Import failed')
-                          } finally {
-                            setImportingId(null)
-                          }
-                        }}
-                        disabled={importingId === r.email_id}
-                        className="shrink-0 px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
-                      >
-                        {importingId === r.email_id ? '...' : 'Import'}
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                Tap Import to create an expense from each email. Imported expenses appear on your Dashboard.
+                Metadata scan only at launch — we can see the subject and sender,
+                not the email body. To import a receipt, forward the email to
+                your SnapExpense address (see &ldquo;Alternative: Email
+                Forwarding&rdquo; below). Full-inbox auto-import is coming soon.
               </p>
             </div>
           )}
