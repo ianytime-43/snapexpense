@@ -7,6 +7,7 @@ from typing import Optional
 
 from ...config import settings
 from .client import get_plaid_client
+from .crypto import encrypt_token, resolve_access_token, EncryptionKeyMissing
 from .matching import auto_match
 
 logger = logging.getLogger(__name__)
@@ -52,11 +53,23 @@ def exchange_public_token(
     row = {
         "user_id": user_id,
         "item_id": item_id,
+        # Legacy plaintext column — kept populated during rollout for backward
+        # compatibility until migration 032 drops it. Prefer the encrypted one.
         "access_token": access_token,
         "institution_id": institution_id,
         "institution_name": institution_name,
         "status": "active",
     }
+    # Best-effort encrypted dual-write. If the key isn't configured we log and
+    # continue with plaintext only so dev environments don't break — but in
+    # production PLAID_ENCRYPTION_KEY MUST be set.
+    try:
+        row["access_token_encrypted"] = encrypt_token(access_token)
+    except EncryptionKeyMissing:
+        logger.warning(
+            "PLAID_ENCRYPTION_KEY not set — storing access_token plaintext only. "
+            "Set PLAID_ENCRYPTION_KEY before production."
+        )
     supabase.table("plaid_items").upsert(row, on_conflict="item_id").execute()
     return {"item_id": item_id, "institution_name": institution_name}
 
@@ -76,7 +89,7 @@ def remove_item(user_id: str, item_row_id: str, supabase) -> bool:
     """Remove a Plaid item (locally + try to revoke at Plaid)."""
     item_res = (
         supabase.table("plaid_items")
-        .select("item_id, access_token")
+        .select("item_id, access_token, access_token_encrypted")
         .eq("id", item_row_id)
         .eq("user_id", user_id)
         .single()
@@ -89,7 +102,8 @@ def remove_item(user_id: str, item_row_id: str, supabase) -> bool:
     try:
         client = get_plaid_client()
         from plaid.model.item_remove_request import ItemRemoveRequest
-        client.item_remove(ItemRemoveRequest(access_token=item_res.data["access_token"]))
+        access_token = resolve_access_token(item_res.data)
+        client.item_remove(ItemRemoveRequest(access_token=access_token))
     except Exception as e:
         logger.warning(f"Plaid item_remove failed (continuing): {e}")
 
@@ -103,7 +117,7 @@ def sync_item(user_id: str, item_row_id: str, supabase) -> dict:
     """
     item_res = (
         supabase.table("plaid_items")
-        .select("id, item_id, access_token, cursor")
+        .select("id, item_id, access_token, access_token_encrypted, cursor")
         .eq("id", item_row_id)
         .eq("user_id", user_id)
         .single()
@@ -113,7 +127,9 @@ def sync_item(user_id: str, item_row_id: str, supabase) -> dict:
         return {"added": 0, "modified": 0, "removed": 0, "auto_matched": 0}
 
     item = item_res.data
-    cursor = item.get("cursor") or ""
+    access_token = resolve_access_token(item)
+    starting_cursor = item.get("cursor") or ""
+    cursor = starting_cursor
     client = get_plaid_client()
     from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
@@ -123,7 +139,7 @@ def sync_item(user_id: str, item_row_id: str, supabase) -> dict:
     has_more = True
 
     while has_more:
-        req = TransactionsSyncRequest(access_token=item["access_token"], cursor=cursor or "")
+        req = TransactionsSyncRequest(access_token=access_token, cursor=cursor or "")
         resp = client.transactions_sync(req)
         added.extend(resp["added"])
         modified.extend(resp["modified"])
@@ -166,19 +182,47 @@ def sync_item(user_id: str, item_row_id: str, supabase) -> dict:
             auto_matched_count += 1
         rows_to_upsert.append(row)
 
-    if rows_to_upsert:
-        supabase.table("bank_transactions").upsert(
-            rows_to_upsert, on_conflict="plaid_transaction_id"
-        ).execute()
+    # ── Transactional-ish cursor advancement ─────────────────────────────────
+    # Supabase PostgREST does not expose multi-statement transactions, so we
+    # can't atomically wrap "upsert rows + advance cursor". Compromise:
+    #   1. Write rows first; cursor is only advanced AFTER successful write.
+    #   2. If the upsert raises, we leave cursor at its previous value and
+    #      re-raise so the caller can mark the item errored. Plaid replays the
+    #      same window on the next sync. This is idempotent because
+    #      `plaid_transaction_id` has a unique constraint (migration 030).
+    #   3. If the cursor update fails AFTER a successful upsert, the next sync
+    #      will replay the same window and upsert will no-op on conflict — no
+    #      data loss, just a duplicate round-trip.
+    # TODO: when Supabase RPC exposes a proper plaid_sync_commit(item_id, rows,
+    #       next_cursor) stored procedure, replace this with a single atomic
+    #       call.
+    try:
+        if rows_to_upsert:
+            supabase.table("bank_transactions").upsert(
+                rows_to_upsert, on_conflict="plaid_transaction_id"
+            ).execute()
 
-    # Mark removed transactions
-    removed_ids = [r["transaction_id"] for r in removed if hasattr(r, "transaction_id") or (isinstance(r, dict) and r.get("transaction_id"))]
-    if removed_ids:
-        supabase.table("bank_transactions").delete().in_(
-            "plaid_transaction_id", removed_ids
-        ).eq("user_id", user_id).execute()
+        # Mark removed transactions
+        removed_ids = [
+            r["transaction_id"]
+            for r in removed
+            if hasattr(r, "transaction_id")
+            or (isinstance(r, dict) and r.get("transaction_id"))
+        ]
+        if removed_ids:
+            supabase.table("bank_transactions").delete().in_(
+                "plaid_transaction_id", removed_ids
+            ).eq("user_id", user_id).execute()
+    except Exception:
+        # Leave cursor at starting_cursor so Plaid replays on next sync.
+        logger.exception(
+            "sync_item: upsert failed for item %s; cursor NOT advanced "
+            "(will replay on next sync, dedup via plaid_transaction_id)",
+            item["id"],
+        )
+        raise
 
-    # Save cursor + last sync
+    # Save cursor + last sync (only reached if upsert succeeded)
     supabase.table("plaid_items").update(
         {
             "cursor": cursor,

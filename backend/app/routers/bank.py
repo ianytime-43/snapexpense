@@ -19,6 +19,11 @@ from ..modules.intel.transaction_matcher import match_transactions
 from ..modules.bank import client as plaid_client
 from ..modules.bank import service as plaid_service
 from ..modules.bank.matching import rank_candidates
+from ..modules.bank.webhook_verify import (
+    WebhookVerificationError,
+    should_skip_verification,
+    verify_webhook,
+)
 from ..modules.bank.models import (
     LinkTokenResponse,
     ExchangeTokenRequest,
@@ -375,9 +380,32 @@ def remove_item(
 
 @router.post("/webhook")
 async def plaid_webhook(request: Request, supabase=Depends(get_supabase_admin)):
-    """Plaid webhook endpoint (no auth — verifies via Plaid signature in production).
-    For sandbox we simply trigger a sync for the affected item."""
-    payload = await request.json()
+    """Plaid webhook endpoint.
+
+    Verifies the JWT in the `Plaid-Verification` header (ES256, 5-min iat
+    window, body-hash claim). In sandbox with PLAID_SKIP_WEBHOOK_VERIFY=true
+    verification is skipped so local dev stays easy — that flag is ignored in
+    any non-sandbox environment.
+    """
+    raw_body = await request.body()
+
+    if not should_skip_verification():
+        jwt_header = request.headers.get("plaid-verification") or request.headers.get(
+            "Plaid-Verification"
+        )
+        try:
+            verify_webhook(raw_body, jwt_header)
+        except WebhookVerificationError as e:
+            logger.warning("Plaid webhook rejected: %s", e)
+            raise HTTPException(status_code=401, detail=f"webhook verification failed: {e}")
+
+    import json as _json
+
+    try:
+        payload = _json.loads(raw_body.decode("utf-8") or "{}")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+
     logger.info(f"Plaid webhook: {payload.get('webhook_type')} / {payload.get('webhook_code')}")
     item_id = payload.get("item_id")
     if not item_id:
