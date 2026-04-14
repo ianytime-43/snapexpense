@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     mailgun_api_key: Optional[str] = None
     mailgun_domain: Optional[str] = None
     reminder_cron_secret: Optional[str] = None
+    plaid_client_id: Optional[str] = None
+    plaid_secret: Optional[str] = None
+    plaid_env: str = "sandbox"  # sandbox | development | production
+    plaid_webhook_url: Optional[str] = None
 
     class Config:
         env_file = ".env"

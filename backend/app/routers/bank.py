@@ -1,18 +1,44 @@
-"""Bank transaction import, matching, and coverage endpoints."""
+"""Bank transaction import, matching, and coverage endpoints.
+
+Includes:
+  - CSV import + manual matching (legacy)
+  - Plaid integration: link tokens, public-token exchange, sync, item management
+  - Per-transaction actions: match / convert / dismiss
+"""
 import csv
 import io
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
 from ..modules.intel.transaction_matcher import match_transactions
+from ..modules.bank import client as plaid_client
+from ..modules.bank import service as plaid_service
+from ..modules.bank.matching import rank_candidates
+from ..modules.bank.models import (
+    LinkTokenResponse,
+    ExchangeTokenRequest,
+    ExchangeTokenResponse,
+    SyncRequest,
+    SyncResponse,
+    MatchRequest,
+    ConvertRequest,
+    CandidatesResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/bank", tags=["bank"])
+
+
+def _user_id(user) -> str:
+    """Compatibility shim — get_current_user returns either a dict or a Supabase user."""
+    if isinstance(user, dict) and "user" in user:
+        return str(user["user"].id)
+    return str(getattr(user, "id", user))
 
 
 class TransactionIn(BaseModel):
@@ -43,7 +69,7 @@ async def import_transactions(
 ):
     """Import a list of bank transactions (manual upload; Plaid integration ready).
     Runs fuzzy matching against the user's existing expenses and stores results."""
-    user_id = user.id
+    user_id = _user_id(user)
 
     # Fetch user expenses for matching
     exp_res = (
@@ -145,7 +171,7 @@ async def list_transactions(
         result = (
             supabase.table("bank_transactions")
             .select("*, expenses(id, merchant_name, amount_total, expense_date, status)")
-            .eq("user_id", user.id)
+            .eq("user_id", _user_id(user))
             .order("transaction_date", desc=True)
             .execute()
         )
@@ -171,7 +197,7 @@ async def manual_match(
         supabase.table("bank_transactions")
         .select("id, user_id")
         .eq("id", body.transaction_id)
-        .eq("user_id", user.id)
+        .eq("user_id", _user_id(user))
         .single()
         .execute()
     )
@@ -183,7 +209,7 @@ async def manual_match(
         supabase.table("expenses")
         .select("id, user_id")
         .eq("id", body.expense_id)
-        .eq("user_id", user.id)
+        .eq("user_id", _user_id(user))
         .single()
         .execute()
     )
@@ -212,7 +238,7 @@ async def unmatch_transaction(
         supabase.table("bank_transactions")
         .update({"matched_expense_id": None, "match_confidence": None})
         .eq("id", transaction_id)
-        .eq("user_id", user.id)
+        .eq("user_id", _user_id(user))
         .execute()
     )
     if not result.data:
@@ -232,7 +258,7 @@ async def get_coverage(
     tx_res = (
         supabase.table("bank_transactions")
         .select("id, matched_expense_id")
-        .eq("user_id", user.id)
+        .eq("user_id", _user_id(user))
         .execute()
     )
     transactions = tx_res.data or []
@@ -248,7 +274,7 @@ async def get_coverage(
     exp_res = (
         supabase.table("expenses")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", _user_id(user))
         .execute()
     )
     all_expenses = exp_res.data or []
@@ -263,3 +289,246 @@ async def get_coverage(
         "extra_receipts": extra_receipts,
         "coverage_pct": coverage_pct,
     }
+
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║                       PLAID INTEGRATION ENDPOINTS                        ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+
+@router.get("/status")
+def plaid_status(user=Depends(get_current_user), supabase=Depends(get_supabase_admin)):
+    """Whether Plaid is configured and how many items the user has connected."""
+    items = []
+    if plaid_client.is_configured():
+        items = plaid_service.list_items(_user_id(user), supabase)
+    return {
+        "configured": plaid_client.is_configured(),
+        "items": items,
+    }
+
+
+@router.post("/link-token", response_model=LinkTokenResponse)
+def create_link_token(user=Depends(get_current_user)):
+    """Create a Plaid Link token for the frontend."""
+    if not plaid_client.is_configured():
+        raise HTTPException(status_code=503, detail="Plaid not configured")
+    try:
+        return plaid_service.create_link_token(_user_id(user))
+    except Exception as e:
+        logger.exception("link_token failed")
+        raise HTTPException(status_code=502, detail=f"Plaid error: {e}")
+
+
+@router.post("/exchange-token", response_model=ExchangeTokenResponse)
+def exchange_token(
+    body: ExchangeTokenRequest,
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Exchange a public_token for an access_token; persist the item."""
+    if not plaid_client.is_configured():
+        raise HTTPException(status_code=503, detail="Plaid not configured")
+    try:
+        return plaid_service.exchange_public_token(
+            _user_id(user),
+            body.public_token,
+            body.institution_name,
+            body.institution_id,
+            supabase,
+        )
+    except Exception as e:
+        logger.exception("exchange_token failed")
+        raise HTTPException(status_code=502, detail=f"Plaid error: {e}")
+
+
+@router.post("/sync", response_model=SyncResponse)
+def sync(
+    body: SyncRequest = SyncRequest(),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Sync transactions for one item (if item_id given) or all of the user's items."""
+    if not plaid_client.is_configured():
+        raise HTTPException(status_code=503, detail="Plaid not configured")
+    try:
+        if body.item_id:
+            return plaid_service.sync_item(_user_id(user), body.item_id, supabase)
+        return plaid_service.sync_all_items(_user_id(user), supabase)
+    except Exception as e:
+        logger.exception("sync failed")
+        raise HTTPException(status_code=502, detail=f"Plaid sync error: {e}")
+
+
+@router.delete("/items/{item_row_id}")
+def remove_item(
+    item_row_id: str,
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Disconnect a connected institution."""
+    ok = plaid_service.remove_item(_user_id(user), item_row_id, supabase)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"ok": True}
+
+
+@router.post("/webhook")
+async def plaid_webhook(request: Request, supabase=Depends(get_supabase_admin)):
+    """Plaid webhook endpoint (no auth — verifies via Plaid signature in production).
+    For sandbox we simply trigger a sync for the affected item."""
+    payload = await request.json()
+    logger.info(f"Plaid webhook: {payload.get('webhook_type')} / {payload.get('webhook_code')}")
+    item_id = payload.get("item_id")
+    if not item_id:
+        return {"ok": True}
+
+    # Find the matching plaid_items row → sync it
+    res = (
+        supabase.table("plaid_items")
+        .select("id, user_id")
+        .eq("item_id", item_id)
+        .single()
+        .execute()
+    )
+    if not res.data:
+        return {"ok": True, "note": "unknown item"}
+
+    try:
+        plaid_service.sync_item(res.data["user_id"], res.data["id"], supabase)
+    except Exception as e:
+        logger.error(f"webhook sync failed: {e}")
+    return {"ok": True}
+
+
+# ── per-transaction actions ──────────────────────────────────────────────────
+
+
+def _get_tx_or_404(tx_id: str, user_id: str, supabase) -> dict:
+    res = (
+        supabase.table("bank_transactions")
+        .select("*")
+        .eq("id", tx_id)
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return res.data
+
+
+@router.get("/transactions/{tx_id}/candidates", response_model=CandidatesResponse)
+def transaction_candidates(
+    tx_id: str,
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Top 3 expense match candidates for a transaction."""
+    user_id = _user_id(user)
+    tx = _get_tx_or_404(tx_id, user_id, supabase)
+
+    exp_res = (
+        supabase.table("expenses")
+        .select("id, merchant_name, amount_total, currency, expense_date")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    expenses = exp_res.data or []
+    top = rank_candidates(tx, expenses, top_n=3)
+    return {
+        "candidates": [
+            {
+                "id": c["id"],
+                "merchant_name": c.get("merchant_name"),
+                "amount_total": c.get("amount_total"),
+                "expense_date": c.get("expense_date"),
+                "score": c["score"],
+            }
+            for c in top
+        ]
+    }
+
+
+@router.post("/transactions/{tx_id}/match")
+def match_to_expense(
+    tx_id: str,
+    body: MatchRequest,
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Manually link a bank transaction to an expense."""
+    user_id = _user_id(user)
+    _get_tx_or_404(tx_id, user_id, supabase)
+
+    exp_res = (
+        supabase.table("expenses")
+        .select("id")
+        .eq("id", body.expense_id)
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    )
+    if not exp_res.data:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    supabase.table("bank_transactions").update(
+        {
+            "matched_expense_id": body.expense_id,
+            "match_confidence": 1.0,
+            "status": "matched",
+        }
+    ).eq("id", tx_id).eq("user_id", user_id).execute()
+    return {"ok": True}
+
+
+@router.post("/transactions/{tx_id}/convert")
+def convert_to_expense(
+    tx_id: str,
+    body: ConvertRequest = ConvertRequest(),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Convert an unmatched transaction into a new expense (no receipt yet)."""
+    user_id = _user_id(user)
+    tx = _get_tx_or_404(tx_id, user_id, supabase)
+
+    expense_row = {
+        "user_id": user_id,
+        "merchant_name": tx.get("merchant_name"),
+        "amount_total": abs(float(tx.get("amount") or 0)),
+        "currency": tx.get("currency") or "CAD",
+        "expense_date": tx.get("transaction_date"),
+        "status": "draft",
+        "expense_tag": body.expense_tag or "business",
+        "notes": body.notes or "Imported from bank transaction",
+    }
+    ins = supabase.table("expenses").insert(expense_row).execute()
+    if not ins.data:
+        raise HTTPException(status_code=500, detail="Failed to create expense")
+    new_expense_id = ins.data[0]["id"]
+
+    supabase.table("bank_transactions").update(
+        {
+            "matched_expense_id": new_expense_id,
+            "match_confidence": 1.0,
+            "status": "converted",
+        }
+    ).eq("id", tx_id).eq("user_id", user_id).execute()
+
+    return {"ok": True, "expense_id": new_expense_id}
+
+
+@router.post("/transactions/{tx_id}/dismiss")
+def dismiss_transaction(
+    tx_id: str,
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_admin),
+):
+    """Mark a transaction as personal/ignore — hidden from unmatched list."""
+    user_id = _user_id(user)
+    _get_tx_or_404(tx_id, user_id, supabase)
+    supabase.table("bank_transactions").update({"status": "dismissed"}).eq("id", tx_id).eq(
+        "user_id", user_id
+    ).execute()
+    return {"ok": True}

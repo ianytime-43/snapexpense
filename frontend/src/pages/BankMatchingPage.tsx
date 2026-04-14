@@ -1,19 +1,33 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { usePlaidLink } from 'react-plaid-link'
 import {
   getBankTransactions,
   getBankCoverage,
+  getPlaidStatus,
+  createPlaidLinkToken,
+  exchangePlaidToken,
+  syncBank,
+  removePlaidItem,
+  getMatchCandidates,
+  matchTransactionToExpense,
+  convertTransactionToExpense,
+  dismissTransaction,
   importBankCsv,
-  unmatchTransaction,
   type BankTransaction,
   type BankCoverage,
+  type PlaidItem,
+  type MatchCandidate,
 } from '../lib/api'
-import { getExpenses } from '../lib/api'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function fmt(amount: number, currency = 'CAD') {
-  return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(amount)
+  try {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
 }
 
 function fmtDate(d?: string) {
@@ -25,89 +39,231 @@ function fmtDate(d?: string) {
   })
 }
 
-function confidenceBadge(score?: number) {
-  if (score == null) return null
-  const pct = Math.round(score * 100)
-  const colour =
-    pct >= 90
-      ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-      : pct >= 70
-        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-        : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+type Tab = 'unmatched' | 'matched' | 'dismissed'
+
+// ── Plaid connect button (uses usePlaidLink hook) ──────────────────────────
+
+function PlaidConnectButton({
+  token,
+  onConnected,
+  disabled,
+}: {
+  token: string
+  onConnected: () => void
+  disabled?: boolean
+}) {
+  const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function startLink() {
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await createPlaidLinkToken(token)
+      setLinkToken(r.link_token)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to start Plaid Link')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onSuccess = useCallback(
+    async (publicToken: string, metadata: { institution?: { name?: string; institution_id?: string } | null }) => {
+      try {
+        await exchangePlaidToken(
+          token,
+          publicToken,
+          metadata?.institution?.name,
+          metadata?.institution?.institution_id,
+        )
+        setLinkToken(null)
+        onConnected()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to link bank')
+      }
+    },
+    [token, onConnected],
+  )
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess,
+    onExit: () => setLinkToken(null),
+  })
+
+  useEffect(() => {
+    if (linkToken && ready) open()
+  }, [linkToken, ready, open])
+
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${colour}`}>{pct}%</span>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={startLink}
+        disabled={disabled || loading}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loading ? 'Connecting…' : 'Connect bank'}
+      </button>
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </div>
   )
 }
 
-// ── skeleton ───────────────────────────────────────────────────────────────
+// ── Match modal ────────────────────────────────────────────────────────────
 
-function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-gray-200 dark:bg-gray-700 ${className}`} />
-}
+function MatchModal({
+  token,
+  tx,
+  onClose,
+  onMatched,
+}: {
+  token: string
+  tx: BankTransaction
+  onClose: () => void
+  onMatched: () => void
+}) {
+  const [candidates, setCandidates] = useState<MatchCandidate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [working, setWorking] = useState(false)
 
-function MatchedSkeleton() {
+  useEffect(() => {
+    getMatchCandidates(token, tx.id)
+      .then(r => setCandidates(r.candidates))
+      .catch(() => setCandidates([]))
+      .finally(() => setLoading(false))
+  }, [token, tx.id])
+
+  async function pick(expenseId: string) {
+    setWorking(true)
+    try {
+      await matchTransactionToExpense(token, tx.id, expenseId)
+      onMatched()
+    } finally {
+      setWorking(false)
+    }
+  }
+
   return (
-    <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-      <div className="flex gap-4">
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-3 w-20" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Match to expense</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {tx.merchant_name || 'Unknown'} · {fmt(tx.amount, tx.currency)} · {fmtDate(tx.transaction_date)}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          >
+            ✕
+          </button>
         </div>
-        <Skeleton className="h-8 w-8 rounded-full self-center" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-3 w-20" />
-        </div>
+
+        {loading ? (
+          <p className="py-8 text-center text-sm text-gray-500">Finding candidates…</p>
+        ) : candidates.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-500">
+            No likely matches in your existing expenses.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {candidates.map(c => (
+              <li key={c.id}>
+                <button
+                  onClick={() => pick(c.id)}
+                  disabled={working}
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-left hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {c.merchant_name || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {fmtDate(c.expense_date)} · {c.amount_total != null ? fmt(c.amount_total) : '—'}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    {Math.round(c.score * 100)}%
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )
 }
 
-// ── transaction card ───────────────────────────────────────────────────────
+// ── transaction row ───────────────────────────────────────────────────────
 
-function TxCard({ tx }: { tx: BankTransaction }) {
+function TxRow({
+  tx,
+  onMatch,
+  onConvert,
+  onDismiss,
+}: {
+  tx: BankTransaction
+  onMatch?: () => void
+  onConvert?: () => void
+  onDismiss?: () => void
+}) {
   return (
-    <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-      <p className="font-medium text-gray-900 dark:text-white">
-        {tx.merchant_name || 'Unknown merchant'}
-      </p>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{fmtDate(tx.transaction_date)}</p>
-      <p className="mt-1 font-semibold text-blue-700 dark:text-blue-300">
-        {fmt(tx.amount, tx.currency)}
-      </p>
-      {tx.account_name && (
-        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{tx.account_name}</p>
-      )}
-    </div>
-  )
-}
-
-function ReceiptCard({ exp }: { exp: NonNullable<BankTransaction['expenses']> }) {
-  return (
-    <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-      <p className="font-medium text-gray-900 dark:text-white">
-        {exp.merchant_name || 'Unknown merchant'}
-      </p>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{fmtDate(exp.expense_date)}</p>
-      <p className="mt-1 font-semibold text-green-700 dark:text-green-300">
-        {exp.amount_total != null ? fmt(exp.amount_total) : '—'}
-      </p>
-      <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 capitalize">
-        {exp.status || 'draft'}
-      </p>
-    </div>
-  )
-}
-
-// ── IRS note ───────────────────────────────────────────────────────────────
-
-function IrsNote() {
-  return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300">
-      <strong>IRS $75 rule (US users):</strong> Non-lodging business expenses under $75 do not
-      require a receipt — only the date, amount, business purpose, and place.
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-gray-900 dark:text-white">
+            {tx.merchant_name || 'Unknown merchant'}
+            {tx.pending && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                Pending
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {fmtDate(tx.transaction_date)}
+            {tx.category && <span className="ml-2">· {tx.category}</span>}
+          </p>
+          <p className="mt-1 font-semibold text-blue-700 dark:text-blue-300">
+            {fmt(tx.amount, tx.currency)}
+          </p>
+        </div>
+        {(onMatch || onConvert || onDismiss) && (
+          <div className="flex flex-wrap gap-2">
+            {onMatch && (
+              <button
+                onClick={onMatch}
+                className="rounded-lg border border-blue-600 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-900/30"
+              >
+                Match
+              </button>
+            )}
+            {onConvert && (
+              <button
+                onClick={onConvert}
+                className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+              >
+                Convert
+              </button>
+            )}
+            {onDismiss && (
+              <button
+                onClick={onDismiss}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -118,100 +274,114 @@ export default function BankMatchingPage({ session }: { session: Session }) {
   const token = session.access_token
 
   const [transactions, setTransactions] = useState<BankTransaction[]>([])
-  const [expenses, setExpenses] = useState<{ id: string; merchant_name?: string; amount_total?: number; expense_date?: string; status?: string }[]>([])
   const [coverage, setCoverage] = useState<BankCoverage | null>(null)
+  const [items, setItems] = useState<PlaidItem[]>([])
+  const [plaidConfigured, setPlaidConfigured] = useState(false)
+  const [tab, setTab] = useState<Tab>('unmatched')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [matchingTx, setMatchingTx] = useState<BankTransaction | null>(null)
   const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ imported: number; auto_matched: number } | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const [confirmed, setConfirmed] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     try {
-      const [txs, exps, cov] = await Promise.all([
+      const [txs, cov, status] = await Promise.all([
         getBankTransactions(token),
-        getExpenses(token),
         getBankCoverage(token).catch(() => null),
+        getPlaidStatus(token).catch(() => ({ configured: false, items: [] as PlaidItem[] })),
       ])
       setTransactions(txs)
-      setExpenses(exps)
       setCoverage(cov)
-    } catch (e: unknown) {
+      setItems(status.items)
+      setPlaidConfigured(status.configured)
+    } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
-  // ── CSV import ───────────────────────────────────────────────────────────
+  async function handleSync(itemId?: string) {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const r = await syncBank(token, itemId)
+      setSyncResult(`Added ${r.added} · auto-matched ${r.auto_matched}`)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function handleRemove(itemRowId: string) {
+    if (!confirm('Disconnect this bank? Existing transactions stay but no new ones will sync.')) return
+    try {
+      await removePlaidItem(token, itemRowId)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to disconnect')
+    }
+  }
+
+  async function handleConvert(txId: string) {
+    try {
+      await convertTransactionToExpense(token, txId)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Convert failed')
+    }
+  }
+
+  async function handleDismiss(txId: string) {
+    try {
+      await dismissTransaction(token, txId)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Dismiss failed')
+    }
+  }
 
   async function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImporting(true)
-    setImportResult(null)
     try {
-      const result = await importBankCsv(file, token)
-      setImportResult(result)
+      await importBankCsv(file, token)
       await load()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Import failed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'CSV import failed')
     } finally {
       setImporting(false)
       if (fileRef.current) fileRef.current.value = ''
     }
   }
 
-  // ── unmatch ──────────────────────────────────────────────────────────────
-
-  async function handleUnmatch(txId: string) {
-    try {
-      await unmatchTransaction(txId, token)
-      await load()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to unmatch')
-    }
-  }
-
-  // ── confirm all ──────────────────────────────────────────────────────────
-
-  async function confirmAll() {
-    setConfirming(true)
-    const matched = transactions.filter(t => t.matched_expense_id)
-    setConfirmed(new Set(matched.map(t => t.id)))
-    setConfirming(false)
-  }
-
   // ── derived lists ────────────────────────────────────────────────────────
 
-  const autoMatched = transactions.filter(
-    t => t.matched_expense_id && t.match_confidence != null && t.match_confidence >= 0.9,
-  )
-  const suggested = transactions.filter(
-    t => t.matched_expense_id && t.match_confidence != null && t.match_confidence < 0.9,
-  )
-  const unmatchedTx = transactions.filter(t => !t.matched_expense_id)
-
-  const matchedExpenseIds = new Set(
-    transactions.filter(t => t.matched_expense_id).map(t => t.matched_expense_id!),
-  )
-  const unmatchedReceipts = expenses.filter(e => !matchedExpenseIds.has(e.id))
+  const filtered = transactions.filter(t => {
+    const status = t.status || (t.matched_expense_id ? 'matched' : 'unmatched')
+    return status === tab
+  })
 
   // ── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 dark:bg-gray-950">
       <div className="mx-auto max-w-4xl px-4 py-8">
-        {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bank Matching</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Match bank transactions to scanned receipts
+              Connect your bank and auto-match transactions to receipts
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -225,37 +395,37 @@ export default function BankMatchingPage({ session }: { session: Session }) {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={importing}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               {importing ? 'Importing…' : 'Import CSV'}
             </button>
-            {(autoMatched.length > 0 || suggested.length > 0) && (
-              <button
-                onClick={confirmAll}
-                disabled={confirming}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
-              >
-                {confirming ? 'Confirming…' : 'Confirm all matches'}
-              </button>
+            {plaidConfigured && (
+              <PlaidConnectButton token={token} onConnected={load} />
             )}
           </div>
         </div>
 
-        {/* Import result */}
-        {importResult && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-700/40 dark:bg-green-900/20 dark:text-green-300">
-            Imported {importResult.imported} transactions — {importResult.auto_matched} auto-matched
+        {!plaidConfigured && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-300">
+            Plaid is not configured on this server. Bank linking is unavailable —
+            CSV import still works. Set <code>PLAID_CLIENT_ID</code> and{' '}
+            <code>PLAID_SECRET</code> on the backend to enable.
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700/40 dark:bg-red-900/20 dark:text-red-300">
             {error}
           </div>
         )}
 
-        {/* Coverage bar */}
+        {syncResult && (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-700/40 dark:bg-green-900/20 dark:text-green-300">
+            {syncResult}
+          </div>
+        )}
+
+        {/* Coverage */}
         {coverage && coverage.total_transactions > 0 && (
           <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
             <div className="mb-2 flex items-center justify-between">
@@ -263,8 +433,8 @@ export default function BankMatchingPage({ session }: { session: Session }) {
                 {coverage.coverage_pct}% receipt coverage
               </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {coverage.matched} matched &middot; {coverage.unmatched_transactions} missing
-                receipts &middot; {coverage.extra_receipts} extra receipts
+                {coverage.matched} matched · {coverage.unmatched_transactions} missing receipts ·{' '}
+                {coverage.extra_receipts} extra
               </span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -276,148 +446,112 @@ export default function BankMatchingPage({ session }: { session: Session }) {
           </div>
         )}
 
-        {/* IRS note */}
-        <div className="mb-6">
-          <IrsNote />
+        {/* Connected banks */}
+        {items.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              Connected banks
+            </h2>
+            <div className="space-y-2">
+              {items.map(it => (
+                <div
+                  key={it.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {it.institution_name || 'Bank'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {it.status === 'active' ? 'Active' : it.status} ·{' '}
+                      {it.last_sync_at
+                        ? `last synced ${new Date(it.last_sync_at).toLocaleString()}`
+                        : 'never synced'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSync(it.id)}
+                      disabled={syncing}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      {syncing ? 'Syncing…' : 'Sync'}
+                    </button>
+                    <button
+                      onClick={() => handleRemove(it.id)}
+                      className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="mb-4 flex gap-1 border-b border-gray-200 dark:border-gray-700">
+          {(['unmatched', 'matched', 'dismissed'] as Tab[]).map(t => {
+            const count = transactions.filter(tx => {
+              const s = tx.status || (tx.matched_expense_id ? 'matched' : 'unmatched')
+              return s === t
+            }).length
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize ${
+                  tab === t
+                    ? 'border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {t} ({count})
+              </button>
+            )
+          })}
         </div>
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <MatchedSkeleton key={i} />)}
+            <div className="h-20 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
+            <div className="h-20 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-900">
+            <p className="text-gray-500 dark:text-gray-400">
+              {tab === 'unmatched'
+                ? items.length === 0
+                  ? 'Connect a bank or import a CSV to get started.'
+                  : 'No unmatched transactions — nice work!'
+                : `No ${tab} transactions.`}
+            </p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Auto-matched */}
-            {(autoMatched.length > 0 || suggested.length > 0) && (
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                  Auto-Matched
-                  <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                    ({autoMatched.length + suggested.length})
-                  </span>
-                </h2>
-                <div className="space-y-3">
-                  {[...autoMatched, ...suggested].map(tx => (
-                    <div
-                      key={tx.id}
-                      className={`rounded-xl border bg-white p-4 dark:bg-gray-900 ${
-                        confirmed.has(tx.id)
-                          ? 'border-green-400 dark:border-green-600'
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <TxCard tx={tx} />
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                          {confidenceBadge(tx.match_confidence)}
-                          <svg
-                            className="h-5 w-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7h8M8 12h8M8 17h8"
-                            />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          {tx.expenses ? (
-                            <ReceiptCard exp={tx.expenses} />
-                          ) : (
-                            <div className="rounded-lg bg-gray-100 p-3 text-sm text-gray-400 dark:bg-gray-800">
-                              Receipt not loaded
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleUnmatch(tx.id)}
-                          title="Remove match"
-                          className="ml-1 rounded p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Unmatched transactions */}
-            {unmatchedTx.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                  Unmatched Transactions
-                  <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                    — need receipts ({unmatchedTx.length})
-                  </span>
-                </h2>
-                <div className="space-y-2">
-                  {unmatchedTx.map(tx => (
-                    <div
-                      key={tx.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
-                    >
-                      <TxCard tx={tx} />
-                      {tx.amount < 75 && (
-                        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                          Under $75 — receipt may not be required (IRS rule, US only)
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Unmatched receipts */}
-            {unmatchedReceipts.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                  Unmatched Receipts
-                  <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                    — extra receipts ({unmatchedReceipts.length})
-                  </span>
-                </h2>
-                <div className="space-y-2">
-                  {unmatchedReceipts.map(exp => (
-                    <div
-                      key={exp.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
-                    >
-                      <ReceiptCard exp={exp} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Empty state */}
-            {transactions.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center dark:border-gray-700 dark:bg-gray-900">
-                <p className="text-gray-500 dark:text-gray-400">
-                  No bank transactions yet.
-                </p>
-                <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
-                  Import a CSV from your bank to get started.
-                </p>
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="mt-4 rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700"
-                >
-                  Import CSV
-                </button>
-              </div>
-            )}
+          <div className="space-y-2">
+            {filtered.map(tx => (
+              <TxRow
+                key={tx.id}
+                tx={tx}
+                onMatch={tab === 'unmatched' ? () => setMatchingTx(tx) : undefined}
+                onConvert={tab === 'unmatched' ? () => handleConvert(tx.id) : undefined}
+                onDismiss={tab === 'unmatched' ? () => handleDismiss(tx.id) : undefined}
+              />
+            ))}
           </div>
+        )}
+
+        {matchingTx && (
+          <MatchModal
+            token={token}
+            tx={matchingTx}
+            onClose={() => setMatchingTx(null)}
+            onMatched={() => {
+              setMatchingTx(null)
+              load()
+            }}
+          />
         )}
       </div>
     </div>

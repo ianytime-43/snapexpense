@@ -166,8 +166,16 @@ function AppRoutes({ session }: { session: Session | null }) {
           )
         }
       />
-      {/* Bank matching — hidden until Plaid is configured */}
-      <Route path="/bank" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="/bank"
+        element={
+          session ? (
+            <BankMatchingPage session={session} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
       <Route
         path="/subscriptions"
         element={

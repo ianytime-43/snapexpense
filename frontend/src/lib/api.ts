@@ -382,6 +382,10 @@ export interface BankTransaction {
   account_name?: string
   matched_expense_id?: string
   match_confidence?: number
+  category?: string
+  pending?: boolean
+  status?: 'unmatched' | 'matched' | 'dismissed' | 'converted'
+  plaid_item_id?: string
   created_at: string
   expenses?: {
     id: string
@@ -454,6 +458,107 @@ export async function unmatchTransaction(transactionId: string, token: string): 
 
 export async function getBankCoverage(token: string): Promise<BankCoverage> {
   return apiFetch('/bank/coverage', token)
+}
+
+// ── Plaid integration ────────────────────────────────────────────────────────
+
+export interface PlaidItem {
+  id: string
+  item_id: string
+  institution_name?: string | null
+  status: string
+  last_sync_at?: string | null
+  created_at: string
+}
+
+export interface PlaidStatus {
+  configured: boolean
+  items: PlaidItem[]
+}
+
+export interface MatchCandidate {
+  id: string
+  merchant_name?: string
+  amount_total?: number
+  expense_date?: string
+  score: number
+}
+
+export async function getPlaidStatus(token: string): Promise<PlaidStatus> {
+  return apiFetch('/bank/status', token)
+}
+
+export async function createPlaidLinkToken(
+  token: string,
+): Promise<{ link_token: string; expiration?: string }> {
+  return apiFetch('/bank/link-token', token, { method: 'POST' })
+}
+
+export async function exchangePlaidToken(
+  token: string,
+  publicToken: string,
+  institutionName?: string,
+  institutionId?: string,
+): Promise<{ item_id: string; institution_name?: string }> {
+  return apiFetch('/bank/exchange-token', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      public_token: publicToken,
+      institution_name: institutionName,
+      institution_id: institutionId,
+    }),
+  })
+}
+
+export async function syncBank(
+  token: string,
+  itemId?: string,
+): Promise<{ added: number; modified: number; removed: number; auto_matched: number }> {
+  return apiFetch('/bank/sync', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_id: itemId }),
+  })
+}
+
+export async function removePlaidItem(token: string, itemRowId: string): Promise<void> {
+  return apiFetch(`/bank/items/${itemRowId}`, token, { method: 'DELETE' })
+}
+
+export async function getMatchCandidates(
+  token: string,
+  txId: string,
+): Promise<{ candidates: MatchCandidate[] }> {
+  return apiFetch(`/bank/transactions/${txId}/candidates`, token)
+}
+
+export async function matchTransactionToExpense(
+  token: string,
+  txId: string,
+  expenseId: string,
+): Promise<void> {
+  return apiFetch(`/bank/transactions/${txId}/match`, token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expense_id: expenseId }),
+  })
+}
+
+export async function convertTransactionToExpense(
+  token: string,
+  txId: string,
+  expenseTag: 'business' | 'work' | 'personal' = 'business',
+): Promise<{ expense_id: string }> {
+  return apiFetch(`/bank/transactions/${txId}/convert`, token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expense_tag: expenseTag }),
+  })
+}
+
+export async function dismissTransaction(token: string, txId: string): Promise<void> {
+  return apiFetch(`/bank/transactions/${txId}/dismiss`, token, { method: 'POST' })
 }
 
 // ── Subscriptions ─────────────────────────────────────────────────────────────

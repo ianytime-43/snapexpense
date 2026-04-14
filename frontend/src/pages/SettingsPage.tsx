@@ -630,6 +630,23 @@ export default function SettingsPage({ session }: Props) {
           )}
         </div>
 
+        {/* Bank Accounts */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+            Bank Accounts
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Connect your bank via Plaid to auto-import transactions and match them
+            to your scanned receipts. Supports US and Canadian banks.
+          </p>
+          <a
+            href="/bank"
+            className="inline-block bg-blue-600 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Manage bank connections
+          </a>
+        </div>
+
         {/* Email Scanning card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
