@@ -120,21 +120,39 @@ def get_anomalies(
         cat_monthly[cat][month] += float(e["amount_total"])
 
     alerts = []
-    current_month = datetime.now().strftime("%Y-%m")
+    now = datetime.now()
+    current_month = now.strftime("%Y-%m")
+    day_of_month = now.day
 
     for cat, months_data in cat_monthly.items():
         current = months_data.get(current_month, 0)
-        # Calculate average of previous months
+
+        # Skip categories with no current-month activity yet — "down 100%"
+        # on a category simply because the user hasn't recorded anything
+        # this month yet is noise, not a signal. A partial month against
+        # complete prior months is not an apples-to-apples comparison.
+        if current <= 0:
+            continue
+
         prev_values = [v for m, v in months_data.items() if m != current_month]
         if not prev_values:
             continue
         avg = sum(prev_values) / len(prev_values)
-        if avg == 0:
+        if avg <= 0:
             continue
 
-        pct_change = ((current - avg) / avg) * 100
+        # Pro-rate current month to avoid false "down" alerts early in month.
+        # Compare current month-to-date against prior months' expected amount
+        # for the equivalent portion of the month.
+        days_in_month = 30  # approximation; good enough for a noise filter
+        proration = min(day_of_month / days_in_month, 1.0)
+        expected_so_far = avg * proration
+        if expected_so_far <= 0:
+            continue
 
-        if abs(pct_change) >= 25:  # 25% threshold
+        pct_change = ((current - expected_so_far) / expected_so_far) * 100
+
+        if abs(pct_change) >= 25:
             direction = "up" if pct_change > 0 else "down"
             alerts.append({
                 "category": cat,
