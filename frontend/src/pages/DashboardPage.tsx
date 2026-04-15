@@ -196,7 +196,10 @@ export default function DashboardPage({ session }: Props) {
       await confirmExpense(expense.id, session.access_token)
       setExpenses(prev => prev.map(e => e.id === expense.id ? { ...e, status: 'confirmed' } : e))
       if (navigator.vibrate) navigator.vibrate(50)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Confirm failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not confirm expense. Please try again.')
+    }
   }
 
   const handleSwipeDelete = (expense: Expense) => {
@@ -238,7 +241,10 @@ export default function DashboardPage({ session }: Props) {
       setExpenses(prev => prev.map(e => selectedIds.has(e.id) ? { ...e, status: 'confirmed' } : e))
       setBulkMode(false)
       setSelectedIds(new Set())
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Bulk confirm failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not confirm some expenses. Please try again.')
+    }
     finally { setBulkProcessing(false) }
   }
 
