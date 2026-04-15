@@ -129,6 +129,7 @@ export default function DashboardPage({ session }: Props) {
   const { start: defaultStart, end: defaultEnd } = thisMonthRange()
   const [startDate, setStartDate] = useState(defaultStart)
   const [endDate, setEndDate] = useState(defaultEnd)
+  const [includeDrafts, setIncludeDrafts] = useState(false)
 
   useEffect(() => {
     getExpenses(session.access_token)
@@ -162,6 +163,11 @@ export default function DashboardPage({ session }: Props) {
     setExportError(null)
     try {
       const params = new URLSearchParams({ start_date: startDate, end_date: endDate })
+      // Drafts are excluded by default for accountant handoff. Only include
+      // them when the user explicitly opts in.
+      if (includeDrafts) {
+        params.set('statuses', 'draft,confirmed,submitted,reimbursed')
+      }
       const apiUrl = import.meta.env.VITE_API_URL ?? ''
       const response = await fetch(`${apiUrl}/api/export/${format}?${params}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -367,6 +373,20 @@ export default function DashboardPage({ session }: Props) {
                       />
                     </div>
                   </div>
+                  <label className="flex items-start gap-2 mb-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeDrafts}
+                      onChange={(e) => setIncludeDrafts(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-xs text-gray-600 leading-tight">
+                      <span className="font-medium text-gray-700">Include drafts</span>
+                      <span className="block text-gray-400">
+                        Drafts are excluded by default for accountant handoff. Enable to include.
+                      </span>
+                    </span>
+                  </label>
                   {exportError && (
                     <p className="text-xs text-red-600 mb-2">{exportError}</p>
                   )}

@@ -16,7 +16,9 @@ import httpx
 
 from datetime import date as date_type
 
-from fastapi import APIRouter, Depends, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
 from ..auth import get_current_user
@@ -40,12 +42,50 @@ COLUMNS: list[tuple[str, str]] = [
 ]
 
 EXPORT_STATUSES = {"draft", "confirmed", "submitted", "reimbursed"}
+# Default statuses used when caller does not specify. Drafts are excluded
+# by default so accountant handoff never contains unconfirmed expenses.
+DEFAULT_EXPORT_STATUSES = {"confirmed", "submitted", "reimbursed"}
+
+
+def _parse_statuses(raw: Optional[str]) -> set[str]:
+    """Parse the comma-separated `statuses` query string into a validated set.
+
+    Returns DEFAULT_EXPORT_STATUSES (drafts excluded) when `raw` is None/empty.
+    Raises HTTPException(400) on any unknown status.
+    """
+    if not raw:
+        return set(DEFAULT_EXPORT_STATUSES)
+    requested = {s.strip() for s in raw.split(",") if s.strip()}
+    if not requested:
+        return set(DEFAULT_EXPORT_STATUSES)
+    unknown = requested - EXPORT_STATUSES
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown status(es): {sorted(unknown)}. "
+                f"Allowed: {sorted(EXPORT_STATUSES)}"
+            ),
+        )
+    return requested
 
 
 # ── shared helpers ─────────────────────────────────────────────────────────────
 
-def _fetch_expenses(admin, user_id: str, start_date: str, end_date: str) -> list[dict]:
-    """Fetch expenses in date range. Includes all statuses and handles NULL dates."""
+def _fetch_expenses(
+    admin,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+    statuses: Optional[set[str]] = None,
+) -> list[dict]:
+    """Fetch expenses in date range filtered by status.
+
+    If `statuses` is None, DEFAULT_EXPORT_STATUSES is used (drafts excluded).
+    Handles NULL expense_date by including rows with no date (so unusual
+    draft imports aren't silently dropped from a submitted export).
+    """
+    allow = set(statuses) if statuses else set(DEFAULT_EXPORT_STATUSES)
     try:
         result = (
             admin.table("expenses")
@@ -56,6 +96,9 @@ def _fetch_expenses(admin, user_id: str, start_date: str, end_date: str) -> list
         # Filter in Python to handle NULL dates properly
         expenses = []
         for e in (result.data or []):
+            status = (e.get("status") or "").strip()
+            if status and status not in allow:
+                continue
             ed = e.get("expense_date")
             if ed is None or (ed >= start_date and ed <= end_date):
                 expenses.append(e)
@@ -422,11 +465,13 @@ def _build_pdf(
 def export_pdf(
     start_date: str = Query(...),
     end_date: str = Query(...),
+    statuses: Optional[str] = Query(None, description="Comma-separated list; omit to exclude drafts."),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    expenses  = _fetch_expenses(admin, user_id, start_date, end_date)
+    allow = _parse_statuses(statuses)
+    expenses  = _fetch_expenses(admin, user_id, start_date, end_date, allow)
     user_info = _get_user_info(admin, user_id)
     data = _build_pdf(expenses, user_info, start_date, end_date)
     fname = f"expenses_{start_date}_{end_date}.pdf"
@@ -441,11 +486,13 @@ def export_pdf(
 def export_excel(
     start_date: str = Query(...),
     end_date: str = Query(...),
+    statuses: Optional[str] = Query(None, description="Comma-separated list; omit to exclude drafts."),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    expenses  = _fetch_expenses(admin, user_id, start_date, end_date)
+    allow = _parse_statuses(statuses)
+    expenses  = _fetch_expenses(admin, user_id, start_date, end_date, allow)
     user_info = _get_user_info(admin, user_id)
     data = _build_excel(expenses, user_info, start_date, end_date)
     fname = f"expenses_{start_date}_{end_date}.xlsx"
@@ -460,11 +507,13 @@ def export_excel(
 def export_csv(
     start_date: str = Query(...),
     end_date: str = Query(...),
+    statuses: Optional[str] = Query(None, description="Comma-separated list; omit to exclude drafts."),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    expenses = _fetch_expenses(admin, user_id, start_date, end_date)
+    allow = _parse_statuses(statuses)
+    expenses = _fetch_expenses(admin, user_id, start_date, end_date, allow)
     data = _build_csv(expenses)
     fname = f"expenses_{start_date}_{end_date}.csv"
     return Response(
@@ -586,11 +635,13 @@ def _build_docx(
 def export_docx(
     start_date: str = Query(...),
     end_date: str = Query(...),
+    statuses: Optional[str] = Query(None, description="Comma-separated list; omit to exclude drafts."),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = str(current_user["user"].id)
     admin = get_supabase_admin()
-    expenses = _fetch_expenses(admin, user_id, start_date, end_date)
+    allow = _parse_statuses(statuses)
+    expenses = _fetch_expenses(admin, user_id, start_date, end_date, allow)
     user_info = _get_user_info(admin, user_id)
     data = _build_docx(expenses, user_info, start_date, end_date)
     fname = f"expenses_{start_date}_{end_date}.docx"
