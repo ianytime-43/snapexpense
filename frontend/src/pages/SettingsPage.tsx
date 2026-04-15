@@ -745,10 +745,47 @@ export default function SettingsPage({ session }: Props) {
           )}
 
           {scanResults.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Found {scanResults.length} receipt-likely emails
+            <div className="mt-4 space-y-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Found {scanResults.length} likely receipts
               </p>
+
+              {/* Honest CTA: we cannot auto-import yet (CASA pending).
+                  Make the forwarding address prominent so the user can act. */}
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 p-4">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-1">
+                  Auto-import isn&apos;t available yet
+                </p>
+                <p className="text-xs text-amber-800 dark:text-amber-300 mb-3">
+                  We only scan subject + sender until Google/Microsoft CASA
+                  verification is complete. To import these receipts now,
+                  forward each email to your SnapExpense address:
+                </p>
+                {address ? (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex-1 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-900/40 rounded-lg px-3 py-2 font-mono text-xs text-gray-800 dark:text-gray-200 select-all overflow-x-auto">
+                      {address}
+                    </div>
+                    <button
+                      onClick={handleCopy}
+                      className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        copied
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-600 text-white hover:bg-amber-700'
+                      }`}
+                    >
+                      {copied ? 'Copied!' : 'Copy address'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                    Loading your forwarding address — scroll down to
+                    &ldquo;Alternative: Email Forwarding&rdquo; if it
+                    doesn&apos;t appear.
+                  </p>
+                )}
+              </div>
+
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {scanResults.map((r) => (
                   <div key={r.email_id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
@@ -761,12 +798,6 @@ export default function SettingsPage({ session }: Props) {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                Metadata scan only at launch — we can see the subject and sender,
-                not the email body. To import a receipt, forward the email to
-                your SnapExpense address (see &ldquo;Alternative: Email
-                Forwarding&rdquo; below). Full-inbox auto-import is coming soon.
-              </p>
             </div>
           )}
         </div>
