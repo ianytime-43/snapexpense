@@ -27,6 +27,8 @@ import SubscriptionsPage from './pages/SubscriptionsPage'
 import AdminPage from './pages/AdminPage'
 import StatusPage from './pages/StatusPage'
 import SmartRulesPage from './pages/SmartRulesPage'
+import AccountantSharesPage from './pages/AccountantSharesPage'
+import AccountantViewPage from './pages/AccountantViewPage'
 
 function Spinner() {
   return (
@@ -42,7 +44,7 @@ function AppRoutes({ session }: { session: Session | null }) {
   useDarkMode()
   const location = useLocation()
 
-  const HIDE_BOTTOM_NAV = ['/', '/auth', '/privacy', '/terms', '/onboarding', '/upload']
+  const HIDE_BOTTOM_NAV = ['/', '/auth', '/privacy', '/terms', '/onboarding', '/upload', '/accountant-view']
 
   return (
     <>
@@ -51,6 +53,8 @@ function AppRoutes({ session }: { session: Session | null }) {
       <Route path="/" element={session ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
+      {/* Public accountant share view — auth is the token in the URL */}
+      <Route path="/accountant-view" element={<AccountantViewPage />} />
 
       {/* Auth */}
       <Route
@@ -188,6 +192,7 @@ function AppRoutes({ session }: { session: Session | null }) {
       <Route path="/admin" element={session ? <AdminPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="/status" element={session ? <StatusPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="/rules" element={session ? <SmartRulesPage session={session} /> : <Navigate to="/auth" replace />} />
+      <Route path="/shares" element={session ? <AccountantSharesPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
     {session && !HIDE_BOTTOM_NAV.includes(location.pathname) && <BottomNav />}

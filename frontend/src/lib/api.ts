@@ -828,3 +828,190 @@ export async function adminDeleteDuplicates(token: string, expenseIds: string[])
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
+
+// -- Smart Rules --------------------------------------------------------------
+
+export interface SmartRule {
+  id: string
+  user_id: string
+  name: string
+  merchant_pattern: string
+  category: string | null
+  is_tax_deductible: boolean
+  is_active: boolean
+  priority: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SmartRuleInput {
+  name: string
+  merchant_pattern: string
+  category?: string | null
+  is_tax_deductible?: boolean
+  is_active?: boolean
+  priority?: number
+}
+
+export async function listSmartRules(token: string): Promise<{ rules: SmartRule[] }> {
+  return apiFetch('/smart-rules', token)
+}
+
+export async function createSmartRule(token: string, data: SmartRuleInput): Promise<SmartRule> {
+  return apiFetch('/smart-rules', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateSmartRule(
+  token: string,
+  id: string,
+  data: Partial<SmartRuleInput>,
+): Promise<SmartRule> {
+  return apiFetch(`/smart-rules/${id}`, token, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteSmartRule(token: string, id: string): Promise<void> {
+  return apiFetch(`/smart-rules/${id}`, token, { method: 'DELETE' })
+}
+
+export async function testSmartRule(
+  token: string,
+  merchant: string,
+  amount?: number,
+): Promise<{ matched: boolean; rule: SmartRule | null; checked_count: number }> {
+  return apiFetch('/smart-rules/test', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merchant, amount }),
+  })
+}
+
+export async function applySmartRulesToExisting(
+  token: string,
+): Promise<{ updated: number; rules_evaluated: number }> {
+  return apiFetch('/smart-rules/apply-to-existing', token, { method: 'POST' })
+}
+
+// -- Accountant scoped shares (date-range, content toggles) -----------------
+
+export interface AccountantShare {
+  id: string
+  accountant_email?: string
+  label: string | null
+  date_from: string | null
+  date_to: string | null
+  granted_at: string | null
+  expires_at: string | null
+  last_used_at: string | null
+  revoked_at: string | null
+  view_count?: number | null
+  include_receipts?: boolean | null
+  include_invoices?: boolean | null
+  include_mileage?: boolean | null
+}
+
+export interface CreateShareInput {
+  label?: string
+  date_from: string
+  date_to: string
+  expires_in_days?: number
+  include_receipts?: boolean
+  include_invoices?: boolean
+  include_mileage?: boolean
+  accountant_email?: string
+}
+
+export interface CreateShareResponse {
+  id: string
+  label: string | null
+  date_from: string
+  date_to: string
+  expires_at: string
+  include_receipts: boolean
+  include_invoices: boolean
+  include_mileage: boolean
+  access_token: string
+  access_token_notice: string
+}
+
+export async function createAccountantShare(
+  token: string,
+  data: CreateShareInput,
+): Promise<CreateShareResponse> {
+  return apiFetch('/accountant/shares', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function listAccountantShares(token: string): Promise<AccountantShare[]> {
+  return apiFetch('/accountant/access-list', token)
+}
+
+export async function revokeAccountantShare(token: string, shareId: string): Promise<void> {
+  return apiFetch(`/accountant/shares/${shareId}`, token, { method: 'DELETE' })
+}
+
+export interface PublicAccountantExpense {
+  id: string
+  merchant_name?: string | null
+  expense_date?: string | null
+  amount_total?: number | null
+  tax_total?: number | null
+  gst_hst?: number | null
+  category?: string | null
+  province?: string | null
+  doc_type?: string | null
+  [key: string]: unknown
+}
+
+export interface PublicAccountantMileageTrip {
+  id: string
+  trip_date?: string | null
+  distance_km?: number | null
+  start_address?: string | null
+  end_address?: string | null
+  trip_tag?: string | null
+  notes?: string | null
+}
+
+export interface PublicAccountantView {
+  share: {
+    owner_email_masked: string
+    label: string | null
+    date_range: { from: string | null; to: string | null }
+    expires_at: string | null
+    include_receipts: boolean
+    include_invoices: boolean
+    include_mileage: boolean
+  }
+  expenses: PublicAccountantExpense[]
+  totals: { count: number; subtotal: number; tax_total: number; grand_total: number }
+  mileage: { trips: PublicAccountantMileageTrip[]; total_km: number; count: number } | null
+}
+
+export async function fetchPublicAccountantView(
+  plaintextToken: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<PublicAccountantView> {
+  const params = new URLSearchParams({ token: plaintextToken })
+  if (dateFrom) params.set('date_from', dateFrom)
+  if (dateTo) params.set('date_to', dateTo)
+  const res = await fetch(`${API_BASE}/accountant/public?${params}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }))
+    const error = new Error(err.detail || `HTTP ${res.status}`) as Error & { status?: number }
+    error.status = res.status
+    throw error
+  }
+  return res.json()
+}
