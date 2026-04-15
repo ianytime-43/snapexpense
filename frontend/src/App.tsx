@@ -22,12 +22,11 @@ import QuarterlyEstimatePage from './pages/QuarterlyEstimatePage'
 import TaxDashboardPage from './pages/TaxDashboardPage'
 import MileagePage from './pages/MileagePage'
 import UploadPage from './pages/UploadPage'
-import EnterpriseSubmitPage from './pages/EnterpriseSubmitPage'
 import BankMatchingPage from './pages/BankMatchingPage'
 import SubscriptionsPage from './pages/SubscriptionsPage'
 import AdminPage from './pages/AdminPage'
 import StatusPage from './pages/StatusPage'
-import WarrantyPage from './pages/WarrantyPage'
+import SmartRulesPage from './pages/SmartRulesPage'
 
 function Spinner() {
   return (
@@ -186,20 +185,9 @@ function AppRoutes({ session }: { session: Session | null }) {
           )
         }
       />
-      {/* Enterprise submit — hidden until Concur is configured */}
-      <Route path="/enterprise-submit" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={session ? <AdminPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="/status" element={session ? <StatusPage session={session} /> : <Navigate to="/auth" replace />} />
-      <Route
-        path="/warranties"
-        element={
-          session ? (
-            <WarrantyPage session={session} />
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
+      <Route path="/rules" element={session ? <SmartRulesPage session={session} /> : <Navigate to="/auth" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
     {session && !HIDE_BOTTOM_NAV.includes(location.pathname) && <BottomNav />}

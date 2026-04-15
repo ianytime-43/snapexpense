@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getQuarterlyEstimate } from '../lib/api'
+import { getMe, getQuarterlyEstimate } from '../lib/api'
 
 interface Props {
   session: Session
@@ -74,7 +74,28 @@ function DateBadge({ date }: { date: string }) {
 
 export default function QuarterlyEstimatePage({ session }: Props) {
   const token = session.access_token
-  const currency = 'CAD' // will reflect from profile in a future pass
+  const [currency, setCurrency] = useState<string>('CAD')
+
+  useEffect(() => {
+    let cancelled = false
+    getMe(token)
+      .then((profile) => {
+        if (cancelled) return
+        if (profile.default_currency) {
+          setCurrency(profile.default_currency)
+        } else if (profile.country === 'US') {
+          setCurrency('USD')
+        } else {
+          setCurrency('CAD')
+        }
+      })
+      .catch(() => {
+        // fall back to CAD default already set
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const [income, setIncome] = useState('')
   const [whatIfSpend, setWhatIfSpend] = useState('')

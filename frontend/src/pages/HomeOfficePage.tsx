@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 interface Props {
@@ -110,9 +110,6 @@ export default function HomeOfficePage({ session: _session }: Props) {
   // US-only
   const [mortgageInterest, setMortgageInterest] = useState('')
 
-  // Added state
-  const [added, setAdded] = useState(false)
-
   const n = (v: string) => parseFloat(v) || 0
 
   const totalSqftNum = n(totalSqft)
@@ -170,12 +167,6 @@ export default function HomeOfficePage({ session: _session }: Props) {
   }, [totalSqftNum, officeSqftNum, rent, utilities, insurance, maintenance, mortgageInterest, propertyTax])
 
   const hasSetup = totalSqftNum > 0 && officeSqftNum > 0
-
-  const handleAddToDeductions = () => {
-    // Client-side only — no API round-trip needed for the calculator
-    setAdded(true)
-    setTimeout(() => setAdded(false), 2500)
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -448,21 +439,6 @@ export default function HomeOfficePage({ session: _session }: Props) {
               </div>
             )}
           </SectionCard>
-        )}
-
-        {/* Add to deductions button */}
-        {((country === 'CA' && caResult && caResult.deduction > 0) ||
-          (country === 'US' && usResult && (usResult.simplified.deduction > 0 || usResult.actual.deduction > 0))) && (
-          <button
-            onClick={handleAddToDeductions}
-            className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition-colors ${
-              added
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
-            }`}
-          >
-            {added ? 'Added to your deductions!' : 'Add to my deductions'}
-          </button>
         )}
 
         {/* Tax disclaimer */}
