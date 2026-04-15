@@ -151,6 +151,7 @@ def process_receipt_bytes(
                 dt_str += f"T{expense_time_str}"
             expense_dt = datetime.fromisoformat(dt_str)
         except ValueError:
+            # Guard: unparseable date/time string — fall through, expense_dt stays None.
             pass
 
     if expense_dt:
@@ -404,8 +405,9 @@ def process_receipt_bytes(
                     admin.table("expenses").update({
                         "notes": f"Possible duplicate: {duplicates[0].get('reason', 'similar expense found')}"
                     }).eq("id", expense_id).execute()
-            except Exception:
-                pass
+            except Exception as exc:
+                # Non-fatal: duplicate-warning note is a nice-to-have.
+                logger.warning("Pipeline: duplicate-warning note update failed for expense=%s: %s", expense_id, exc)
     except Exception as e:
         logger.warning(f"Smart duplicate check failed: {e}")
 

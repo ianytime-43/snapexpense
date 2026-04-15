@@ -298,6 +298,7 @@ def admin_find_duplicates(current_user: dict = Depends(_require_admin)):
                         if abs((dt1 - dt2).days) > 3:
                             continue
                     except ValueError:
+                        # Guard: unparseable date — skip date-closeness check for this pair.
                         pass
                 group.append(e2)
                 seen.add(e2["id"])
@@ -339,20 +340,21 @@ def admin_delete_duplicates(body: DeleteDuplicatesRequest, current_user: dict = 
             # Delete related records first
             try:
                 admin.table("receipts").delete().eq("expense_id", eid).execute()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("admin delete_duplicates: receipts cleanup failed for expense=%s: %s", eid, exc)
             try:
                 admin.table("attendees").delete().eq("expense_id", eid).execute()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("admin delete_duplicates: attendees cleanup failed for expense=%s: %s", eid, exc)
             try:
                 admin.table("expense_line_items").delete().eq("expense_id", eid).execute()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("admin delete_duplicates: line_items cleanup failed for expense=%s: %s", eid, exc)
             # Delete expense
             admin.table("expenses").delete().eq("id", eid).execute()
             deleted += 1
-        except Exception:
+        except Exception as exc:
+            logger.exception("admin delete_duplicates: delete failed for expense=%s: %s", eid, exc)
             errors += 1
 
     return {"deleted": deleted, "errors": errors}

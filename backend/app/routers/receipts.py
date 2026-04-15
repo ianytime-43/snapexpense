@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -6,6 +7,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from ..auth import get_current_user
 from ..database import get_supabase_admin
 from ..services import pipeline
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -47,8 +50,9 @@ def upload_receipt(
         )
         if dup and dup.data and dup.data.get("expense_id"):
             return {"expense_id": dup.data["expense_id"], "duplicate": True}
-    except Exception:
-        pass  # Non-fatal — continue with upload
+    except Exception as exc:
+        # Non-fatal: continue with fresh upload if dedup lookup fails.
+        logger.warning("Receipt dedup lookup failed for user=%s: %s", user_id, exc)
 
     content_type = file.content_type or "image/jpeg"
     filename = file.filename or "receipt.jpg"

@@ -124,8 +124,9 @@ def calendar_callback(
         )
         info_resp.raise_for_status()
         google_email = info_resp.json().get("email")
-    except Exception:
-        pass  # email display is non-critical
+    except Exception as exc:
+        # Non-critical: email display is nice-to-have; connection still works.
+        logger.warning("Calendar: google userinfo fetch failed for user=%s: %s", user_id, exc)
 
     token_to_save = stamp_expiry({**token_data})
     if google_email:

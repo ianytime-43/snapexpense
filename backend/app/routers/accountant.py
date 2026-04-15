@@ -285,8 +285,9 @@ def _resolve_token(token: str, request: Optional[Request] = None):
         admin.table("accountant_access").update(
             {"last_used_at": _utcnow().isoformat()}
         ).eq("token_hash", digest).execute()
-    except Exception:
-        pass
+    except Exception as exc:
+        # Non-fatal: last_used_at bump is audit-only; main flow continues.
+        logger.warning("Accountant: last_used_at update failed: %s", exc)
     _log_access(
         admin,
         access_id=row.get("id"),
@@ -613,8 +614,9 @@ def accountant_public_view(
                 "view_count": int(row.get("view_count") or 0) + 1,
             }
         ).eq("token_hash", digest).execute()
-    except Exception:
-        pass
+    except Exception as exc:
+        # Non-fatal: view_count bump is audit-only.
+        logger.warning("Accountant: view_count bump failed: %s", exc)
     _log_access(
         admin,
         access_id=row.get("id"),

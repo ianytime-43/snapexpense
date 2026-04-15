@@ -76,7 +76,8 @@ async def scan_outlook_metadata(
                         if received_dt.replace(tzinfo=None) < cutoff:
                             continue
                     except ValueError:
-                        pass  # keep the message if we can't parse the date
+                        # Guard: unparseable date — keep the message rather than drop it.
+                        pass
 
                 sender_email = (
                     msg.get("from", {})

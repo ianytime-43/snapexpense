@@ -123,8 +123,9 @@ def outlook_callback(
         me_data = me_resp.json()
         # Prefer mail (SMTP address) over userPrincipalName (may be alias@tenant)
         outlook_email = me_data.get("mail") or me_data.get("userPrincipalName")
-    except Exception:
-        pass  # email display is non-critical
+    except Exception as exc:
+        # Non-critical: email display is nice-to-have; connection still works.
+        logger.warning("Outlook: /me fetch failed for user=%s: %s", user_id, exc)
 
     token_to_save = stamp_expiry({**token_data})
     if outlook_email:

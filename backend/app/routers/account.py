@@ -125,8 +125,9 @@ def delete_my_account(current_user: dict = Depends(get_current_user)):
             "action": "account_delete",
             "created_at": None,
         }).execute()
-    except Exception:
-        pass  # Table may not exist yet.
+    except Exception as exc:
+        # Non-fatal: audit_log table is optional — account deletion must proceed.
+        logger.warning("ACCOUNT DELETE: audit_log insert failed for user=%s: %s", user_id, exc)
 
     # Child tables tied to expenses must go before expenses themselves.
     expense_ids: list[str] = []

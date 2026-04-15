@@ -184,6 +184,7 @@ async def _disabled_legacy_import_body(body, current_user):  # pragma: no cover
                 dt = datetime.fromisoformat(body.date.replace("Z", "+00:00"))
                 parsed["expense_date"] = dt.strftime("%Y-%m-%d")
             except Exception:
+                # Guard: unparseable email date — fall through, AI may have extracted a date.
                 pass
 
         if not parsed.get("merchant_name") and body.sender:
@@ -240,8 +241,9 @@ async def _disabled_legacy_import_body(body, current_user):  # pragma: no cover
                 admin.table("expenses").update({
                     "notes": "Needs review: amount could not be extracted from email. Please update manually."
                 }).eq("id", expense_id).execute()
-            except Exception:
-                pass
+            except Exception as exc:
+                # Non-fatal: the expense was created; flagging note is a nice-to-have.
+                logger.warning("Gmail scan: review-flag note update failed for expense=%s: %s", expense_id, exc)
 
         return {"status": "ok", "expense_id": expense_id, "parsed": parsed}
 

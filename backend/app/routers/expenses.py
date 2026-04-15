@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import Optional
 
@@ -6,6 +7,8 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
@@ -161,8 +164,9 @@ def update_expense(
                 tax_rate=updated.get("tax_rate_applied"),
                 payment_method=updated.get("payment_method"),
             )
-        except Exception:
-            pass  # Non-fatal
+        except Exception as exc:
+            # Non-fatal: vendor memory learning is a background optimization.
+            logger.warning("Vendor memory learn failed for user=%s: %s", user_id, exc)
 
     return updated
 

@@ -168,8 +168,9 @@ async def inbound_email(request: Request):
             if vendor_row.data:
                 vendor_id = vendor_row.data[0]["id"]
                 logger.info("EMAIL INGEST: matched vendor=%s", vendor_row.data[0]["vendor_name"])
-        except Exception:
-            pass
+        except Exception as exc:
+            # Non-fatal: vendor lookup enriches the record but isn't required.
+            logger.warning("EMAIL INGEST: vendor lookup failed for domain=%s: %s", sender_domain, exc)
 
     # ── Save raw email record ────────────────────────────────────────────────
     forwarded_email_id = None
@@ -226,8 +227,9 @@ async def inbound_email(request: Request):
                 logger.info("EMAIL INGEST: attachment %d is duplicate — skipping", i)
                 expense_id = dup.data["expense_id"]
                 continue
-        except Exception:
-            pass
+        except Exception as exc:
+            # Non-fatal: fall through to upload if dedup lookup fails.
+            logger.warning("EMAIL INGEST: dedup lookup failed for attachment %d: %s", i, exc)
 
         try:
             expense_id, _ = pipeline.process_receipt_bytes(
@@ -267,7 +269,8 @@ async def inbound_email(request: Request):
                 "expense_id": expense_id,
                 "processing_status": "matched" if expense_id else "failed",
             }).eq("id", forwarded_email_id).execute()
-        except Exception:
-            pass
+        except Exception as exc:
+            # Non-fatal: processing result already returned; status update is for history.
+            logger.warning("EMAIL INGEST: status update failed for forwarded_email=%s: %s", forwarded_email_id, exc)
 
     return {"status": "ok", "expense_id": expense_id}
