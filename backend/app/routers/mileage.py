@@ -5,7 +5,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -28,11 +28,14 @@ class TripCreate(BaseModel):
 
 
 class TripUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     trip_tag: Optional[str] = None
     notes: Optional[str] = None
     start_address: Optional[str] = None
     end_address: Optional[str] = None
     distance_km: Optional[float] = None
+    trip_date: Optional[str] = None
 
 
 @router.get("/trips")

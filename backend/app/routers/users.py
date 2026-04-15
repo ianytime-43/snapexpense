@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -26,10 +26,23 @@ ALLOWED_FIELDS = {
     "notification_push",
     "notification_email",
     "notification_sms",
+    # Preferences added in migration 012
+    "expense_categories",
+    "work_hours_start",
+    "work_hours_end",
+    "work_days",
+    "country",
+    # Auto-submit preferences from migration 021
+    "auto_submit_frequency",
+    "auto_submit_email",
 }
 
 
 class UserUpdate(BaseModel):
+    # Root-cause guard: reject unknown fields with 422. Previously unknown keys
+    # were silently dropped by pydantic, then again by ALLOWED_FIELDS.
+    model_config = ConfigDict(extra="forbid")
+
     full_name: Optional[str] = None
     company_name: Optional[str] = None
     department: Optional[str] = None
@@ -41,6 +54,14 @@ class UserUpdate(BaseModel):
     notification_push: Optional[bool] = None
     notification_email: Optional[bool] = None
     notification_sms: Optional[bool] = None
+    # Fields the UI (OnboardingPage, SettingsPage) actually sends.
+    expense_categories: Optional[list[str]] = None  # migration 012 (JSONB)
+    work_hours_start: Optional[str] = None          # migration 012
+    work_hours_end: Optional[str] = None            # migration 012
+    work_days: Optional[list[int]] = None           # migration 012 (JSONB)
+    country: Optional[str] = None                   # migration 012
+    auto_submit_frequency: Optional[str] = None     # migration 021
+    auto_submit_email: Optional[str] = None         # migration 021
 
 
 @router.get("/me")

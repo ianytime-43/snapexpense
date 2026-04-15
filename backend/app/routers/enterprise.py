@@ -8,7 +8,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -33,6 +33,8 @@ COMPLIANCE_REQUIRED_FIELDS = ["employee_id", "cost_center", "default_gl_code"]
 
 
 class EnterpriseProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     employee_id: Optional[str] = None
     cost_center: Optional[str] = None
     default_gl_code: Optional[str] = None

@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -22,6 +22,8 @@ class GroupCreate(BaseModel):
 
 
 class GroupUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: Optional[str] = None
     trip_date_start: Optional[str] = None
     trip_date_end: Optional[str] = None

@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -28,6 +28,8 @@ class RuleCreate(BaseModel):
 
 
 class RuleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: Optional[str] = None
     merchant_pattern: Optional[str] = None
     category: Optional[str] = None
