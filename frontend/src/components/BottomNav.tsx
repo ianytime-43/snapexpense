@@ -53,11 +53,11 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-[#072419] border-t border-gray-200 dark:border-[#1A3D32] safe-area-bottom">
-      <div className="max-w-lg mx-auto flex items-center justify-around h-16 relative">
+      <div className="max-w-lg mx-auto grid grid-cols-5 items-center h-16 relative">
         {tabs.map((tab) => {
           if (tab.path === '__fab__') {
             return (
-              <div key="fab" className="relative -mt-6">
+              <div key="fab" className="flex justify-center -mt-6">
                 <button
                   onClick={() => navigate('/upload')}
                   className="w-14 h-14 rounded-full bg-green-500 dark:bg-[#03D47C] text-white shadow-lg flex items-center justify-center hover:bg-green-600 active:scale-95 transition-all"
@@ -78,7 +78,7 @@ export default function BottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
                 isActive
                   ? 'text-green-600 dark:text-[#03D47C]'
                   : 'text-gray-400 dark:text-[#8B9C8F]'
