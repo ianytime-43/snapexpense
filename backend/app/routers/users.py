@@ -23,6 +23,9 @@ ALLOWED_FIELDS = {
     "reminder_frequency",
     "expense_workflow",
     "onboarding_complete",
+    "notification_push",
+    "notification_email",
+    "notification_sms",
 }
 
 
@@ -35,6 +38,9 @@ class UserUpdate(BaseModel):
     reminder_frequency: Optional[str] = None
     expense_workflow: Optional[str] = None
     onboarding_complete: Optional[bool] = None
+    notification_push: Optional[bool] = None
+    notification_email: Optional[bool] = None
+    notification_sms: Optional[bool] = None
 
 
 @router.get("/me")

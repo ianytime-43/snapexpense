@@ -242,11 +242,17 @@ export default function SettingsPage({ session }: Props) {
     if (!userProfile) return
     const newValue = !userProfile[field]
     setNotifSaving(true)
+    setError(null)
+    // Optimistic update so the toggle animates immediately
+    setUserProfile(prev => prev ? { ...prev, [field]: newValue } : prev)
     try {
       const updated = await updateMe({ [field]: newValue }, session.access_token)
-      setUserProfile(prev => prev ? { ...prev, [field]: updated[field] } : prev)
-    } catch {
-      // ignore
+      setUserProfile(prev => prev ? { ...prev, [field]: updated[field] ?? newValue } : prev)
+    } catch (err) {
+      console.error('Notification toggle failed:', err)
+      // Revert on failure
+      setUserProfile(prev => prev ? { ...prev, [field]: !newValue } : prev)
+      setError(err instanceof Error ? err.message : 'Could not update notification preferences')
     } finally {
       setNotifSaving(false)
     }
