@@ -75,8 +75,9 @@ export async function processQueue(token: string): Promise<number> {
       await uploadReceipt(file, token)
       await removeFromQueue(item.id)
       uploaded++
-    } catch {
-      // Leave in queue for next attempt
+    } catch (err) {
+      // Leave in queue for next attempt — log so retry failures are visible
+      console.warn('OfflineQueue: upload retry failed, will retry later:', err)
     }
   }
   return uploaded
@@ -84,7 +85,7 @@ export async function processQueue(token: string): Promise<number> {
 
 export function useOfflineQueue(token: string | null) {
   const process = useCallback(() => {
-    if (token) processQueue(token).catch(() => {})
+    if (token) processQueue(token).catch((err) => console.error('OfflineQueue: processQueue failed:', err))
   }, [token])
 
   useEffect(() => {

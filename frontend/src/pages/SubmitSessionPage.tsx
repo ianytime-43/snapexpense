@@ -110,7 +110,9 @@ export default function SubmitSessionPage({ session }: Props) {
         setDetail(exp)
         // Lazily fetch group info
         if (exp.group_id) {
-          getGroup(exp.group_id, session.access_token).then(setDetailGroup).catch(() => {})
+          getGroup(exp.group_id, session.access_token)
+            .then(setDetailGroup)
+            .catch((err) => console.error('SubmitSession: load group failed:', err))
         }
       })
       .finally(() => setLoadingDetail(false))

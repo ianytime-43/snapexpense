@@ -44,12 +44,19 @@ function SingleView({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <img
           src={item.preview}
           alt="Receipt preview"
           className="w-full max-h-[60vh] object-contain"
         />
+        {isProcessing && (
+          <div className="absolute inset-0 bg-white/85 dark:bg-gray-900/85 flex flex-col items-center justify-center text-center px-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600" />
+            <p className="mt-4 text-gray-700 font-medium">Processing receipt...</p>
+            <p className="text-gray-400 text-sm">Takes about 5-10 seconds</p>
+          </div>
+        )}
       </div>
 
       {item.error && (
@@ -58,9 +65,7 @@ function SingleView({
         </div>
       )}
 
-      {isProcessing ? (
-        <ProcessingIndicator />
-      ) : (
+      {!isProcessing && (
         <div className="flex gap-3">
           <button
             onClick={onReset}
@@ -178,7 +183,10 @@ function BatchView({
       {uploading && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600 font-medium">Processing receipts…</span>
+            <span className="text-sm text-gray-600 font-medium flex items-center gap-2">
+              <span className="animate-spin inline-block rounded-full h-4 w-4 border-b-2 border-green-600" />
+              Processing receipts...
+            </span>
             <span className="text-sm text-gray-500">{done} / {items.length}</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -307,7 +315,9 @@ export default function UploadPage({ session }: Props) {
       navigate(`/expenses/${result.expense_id}`)
     } catch (err: unknown) {
       if (!navigator.onLine) {
-        await saveToQueue(item.file).catch(() => {})
+        await saveToQueue(item.file).catch((qErr) => {
+          console.error('Upload: offline queue save failed:', qErr)
+        })
         updateItem(item.id, {
           status: 'error',
           error: "You're offline — receipt saved. Will upload automatically when connected.",

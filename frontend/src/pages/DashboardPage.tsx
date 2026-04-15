@@ -139,7 +139,9 @@ export default function DashboardPage({ session }: Props) {
 
   useEffect(() => {
     if (groupByTrip) {
-      getGroups(session.access_token).then(setTripGroups).catch(() => {})
+      getGroups(session.access_token)
+        .then(setTripGroups)
+        .catch((err) => console.error('Dashboard: load trip groups failed:', err))
     }
   }, [groupByTrip, session])
 

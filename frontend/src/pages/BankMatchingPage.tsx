@@ -290,7 +290,8 @@ export default function BankMatchingPage({ session }: { session: Session }) {
     try {
       const [txs, cov, status] = await Promise.all([
         getBankTransactions(token),
-        getBankCoverage(token).catch(() => null),
+        // Coverage is optional — null if unavailable. Log so repeated failures are visible.
+        getBankCoverage(token).catch((err) => { console.error('BankMatching: coverage fetch failed:', err); return null }),
         getPlaidStatus(token).catch(() => ({ configured: false, items: [] as PlaidItem[] })),
       ])
       setTransactions(txs)
