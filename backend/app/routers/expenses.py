@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from ..auth import get_current_user
 from ..database import get_supabase_admin
@@ -14,9 +14,14 @@ router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 VALID_STATUSES = {"draft", "confirmed", "submitted", "reimbursed"}
 VALID_PAYMENT_METHODS = {"personal_card", "corporate_card", "cash"}
+VALID_EXPENSE_TAGS = {"business", "work", "personal"}
+VALID_DOCUMENT_TYPES = {"receipt", "invoice", "subscription", "payment_confirmation"}
 
 
 class ExpenseUpdate(BaseModel):
+    # Root-cause guard: reject unknown fields with 422 instead of silently dropping.
+    model_config = ConfigDict(extra="forbid")
+
     status: Optional[str] = None
     merchant_name: Optional[str] = None
     merchant_address: Optional[str] = None
@@ -33,6 +38,14 @@ class ExpenseUpdate(BaseModel):
     client_name: Optional[str] = None
     project_name: Optional[str] = None
     notes: Optional[str] = None
+    # Fields the UI sends that were previously dropped silently.
+    expense_tag: Optional[str] = None          # migration 012: business/work/personal
+    deduction_pct: Optional[float] = None      # migration 017: NUMERIC(5,4)
+    group_id: Optional[str] = None             # migration 006
+    alcohol_total: Optional[float] = None      # migration 014: NUMERIC(10,2)
+    document_type: Optional[str] = None        # migration 014: receipt/invoice/subscription/payment_confirmation
+    due_date: Optional[str] = None             # migration 014: DATE (ISO string)
+    location_jurisdiction: Optional[str] = None  # migration 007
 
     @field_validator(
         "merchant_name",
@@ -46,6 +59,11 @@ class ExpenseUpdate(BaseModel):
         "client_name",
         "project_name",
         "notes",
+        "expense_tag",
+        "document_type",
+        "due_date",
+        "group_id",
+        "location_jurisdiction",
         mode="before",
     )
     @classmethod
@@ -66,6 +84,20 @@ class ExpenseUpdate(BaseModel):
     def validate_payment_method(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and v not in VALID_PAYMENT_METHODS:
             return None
+        return v
+
+    @field_validator("expense_tag")
+    @classmethod
+    def validate_expense_tag(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_EXPENSE_TAGS:
+            raise ValueError(f"expense_tag must be one of {VALID_EXPENSE_TAGS}")
+        return v
+
+    @field_validator("document_type")
+    @classmethod
+    def validate_document_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_DOCUMENT_TYPES:
+            raise ValueError(f"document_type must be one of {VALID_DOCUMENT_TYPES}")
         return v
 
 
