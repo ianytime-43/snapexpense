@@ -7,7 +7,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -20,8 +22,10 @@
     "react-router-dom": "^6.21.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.59.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "dotenv": "^16.4.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",

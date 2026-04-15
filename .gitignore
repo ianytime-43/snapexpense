@@ -29,6 +29,12 @@ yarn-error.log
 # Vite / frontend build output
 frontend/dist/
 
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+frontend/.env.e2e
+
 # OS
 .DS_Store
 Thumbs.db
