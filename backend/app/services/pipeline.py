@@ -119,6 +119,23 @@ def process_receipt_bytes(
     except Exception as e:
         logger.warning(f"Vendor memory lookup failed: {e}")
 
+    # Smart rules — pattern-based auto-categorization (after vendor memory, before save).
+    # Rule only applies when no category has been determined yet.
+    smart_rule_matched: dict | None = None
+    try:
+        from app.modules.smart_rules import list_active_rules, match_rule
+        _rules = list_active_rules(admin, user_id)
+        smart_rule_matched = match_rule(_rules, parsed.get("merchant_name", ""))
+        if smart_rule_matched:
+            if smart_rule_matched.get("category") and not parsed.get("category"):
+                parsed["category"] = smart_rule_matched["category"]
+            logger.info(
+                "Smart rule matched — rule=%s merchant=%r",
+                smart_rule_matched.get("name"), parsed.get("merchant_name"),
+            )
+    except Exception as e:
+        logger.warning(f"Smart rule lookup failed: {e}")
+
     # Ensure public.users row exists (needed for calendar token lookup)
     _ensure_user_row(admin, user_id)
 
@@ -314,6 +331,12 @@ def process_receipt_bytes(
         expense_data["deduction_rule"] = tax_result["deduction_rule"]
     except Exception as e:
         logger.warning(f"Tax deduction calculation failed: {e}")
+
+    # Apply smart rule side effects just before insert (deduction boost + rule id link).
+    if smart_rule_matched:
+        expense_data["applied_rule_id"] = smart_rule_matched.get("id")
+        if smart_rule_matched.get("is_tax_deductible") and not expense_data.get("deduction_pct"):
+            expense_data["deduction_pct"] = 100
 
     expense_result = admin.table("expenses").insert(expense_data).execute()
     expense_id: str = expense_result.data[0]["id"]
