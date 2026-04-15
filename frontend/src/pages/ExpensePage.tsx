@@ -48,7 +48,7 @@ function CopyButton({ value }: { value: string }) {
     try {
       await navigator.clipboard.writeText(value)
     } catch {
-      // Fallback for browsers that block clipboard API
+      // intentionally silent: fallback to execCommand for browsers without clipboard API
       const el = document.createElement('textarea')
       el.value = value
       document.body.appendChild(el)
@@ -141,7 +141,12 @@ export default function ExpensePage({ session }: Props) {
   }, [id, session])
 
   useEffect(() => {
-    getGroups(session.access_token).then(setGroups).catch(() => {})
+    getGroups(session.access_token)
+      .then(setGroups)
+      .catch((err) => {
+        // Non-fatal: group dropdown just stays empty
+        console.error('ExpensePage: failed to load groups:', err)
+      })
   }, [session])
 
   useEffect(() => {
@@ -193,8 +198,9 @@ export default function ExpensePage({ session }: Props) {
       setGroups(updatedGroups)
       setExpense(prev => prev ? { ...prev, group_id: groupId } : prev)
       setShowGroupDropdown(false)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Add to group failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not add expense to group')
     } finally {
       setGroupSaving(false)
     }
@@ -208,8 +214,9 @@ export default function ExpensePage({ session }: Props) {
       const updatedGroups = await getGroups(session.access_token)
       setGroups(updatedGroups)
       setExpense(prev => prev ? { ...prev, group_id: null } : prev)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Remove from group failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not remove expense from group')
     } finally {
       setGroupSaving(false)
     }
@@ -227,8 +234,9 @@ export default function ExpensePage({ session }: Props) {
       setNewGroupTitle('')
       setCreatingGroup(false)
       setShowGroupDropdown(false)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Create group failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not create group')
     } finally {
       setGroupSaving(false)
     }
@@ -236,11 +244,16 @@ export default function ExpensePage({ session }: Props) {
 
   const handleTagChange = async (tag: string) => {
     if (!expense) return
+    const prevTag = expense.expense_tag
+    // Optimistic update
+    setExpense(prev => prev ? { ...prev, expense_tag: tag as Expense['expense_tag'] } : prev)
     try {
       await updateExpense(expense.id, { expense_tag: tag }, session.access_token)
-      setExpense(prev => prev ? { ...prev, expense_tag: tag as Expense['expense_tag'] } : prev)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Tag change failed:', err)
+      // Revert on failure
+      setExpense(prev => prev ? { ...prev, expense_tag: prevTag } : prev)
+      setError(err instanceof Error ? err.message : 'Could not update tag')
     }
   }
 
@@ -316,8 +329,9 @@ export default function ExpensePage({ session }: Props) {
       setExpense(updated)
       setForm(updated)
       setCalendarAction('accepted')
-    } catch {
-      // non-critical — just dismiss
+    } catch (err) {
+      // non-critical — just dismiss, but log so we can see repeated failures
+      console.error('Accept calendar suggestion failed:', err)
       setCalendarAction('accepted')
     }
   }

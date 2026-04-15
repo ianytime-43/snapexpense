@@ -88,20 +88,22 @@ export default function SettingsPage({ session }: Props) {
   const [searchParams] = useSearchParams()
 
   useEffect(() => {
-    getMe(session.access_token).then(setUserProfile).catch(() => {})
+    getMe(session.access_token)
+      .then(setUserProfile)
+      .catch((err) => console.error('Settings: load user profile failed:', err))
   }, [session])
 
   useEffect(() => {
     getIntegrationConnections(session.access_token)
       .then(setIntegrationConnections)
-      .catch(() => {})
+      .catch((err) => console.error('Settings: load integrations failed:', err))
       .finally(() => setIntegrationsLoading(false))
   }, [session])
 
   useEffect(() => {
     getAccountantAccessList(session.access_token)
       .then(setAccountantList)
-      .catch(() => {})
+      .catch((err) => console.error('Settings: load accountants failed:', err))
       .finally(() => setAccountantLoading(false))
   }, [session])
 
@@ -120,7 +122,7 @@ export default function SettingsPage({ session }: Props) {
     })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.templates) setReportTemplates(data.templates) })
-      .catch(() => {})
+      .catch((err) => console.error('Settings: load report templates failed:', err))
   }, [session])
 
   useEffect(() => {
@@ -142,7 +144,7 @@ export default function SettingsPage({ session }: Props) {
         setCalConnected(s.connected)
         setCalEmail(s.email)
       })
-      .catch(() => {})
+      .catch((err) => console.error('Settings: calendar status failed:', err))
       .finally(() => setCalLoading(false))
   }, [session])
 
@@ -152,7 +154,7 @@ export default function SettingsPage({ session }: Props) {
         setOutlookConnected(s.connected)
         setOutlookEmail(s.email)
       })
-      .catch(() => {})
+      .catch((err) => console.error('Settings: outlook status failed:', err))
       .finally(() => setOutlookLoading(false))
   }, [session])
 
@@ -162,7 +164,7 @@ export default function SettingsPage({ session }: Props) {
     if (calParam === 'connected') {
       getCalendarStatus(session.access_token)
         .then((s) => { setCalConnected(s.connected); setCalEmail(s.email) })
-        .catch(() => {})
+        .catch((err) => console.error('Settings: post-OAuth calendar recheck failed:', err))
       navigate('/settings', { replace: true })
     }
   }, [searchParams, session, navigate])
@@ -173,17 +175,20 @@ export default function SettingsPage({ session }: Props) {
     if (outlookParam === 'connected') {
       getOutlookStatus(session.access_token)
         .then((s) => { setOutlookConnected(s.connected); setOutlookEmail(s.email) })
-        .catch(() => {})
+        .catch((err) => console.error('Settings: post-OAuth outlook recheck failed:', err))
       navigate('/settings', { replace: true })
     }
   }, [searchParams, session, navigate])
 
   const handleCalendarConnect = async () => {
     setCalWorking(true)
+    setError(null)
     try {
       const { auth_url } = await getCalendarAuthUrl(session.access_token)
       window.location.href = auth_url
-    } catch {
+    } catch (err) {
+      console.error('Calendar connect failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not start Google Calendar connection')
       setCalWorking(false)
     }
   }
@@ -191,11 +196,14 @@ export default function SettingsPage({ session }: Props) {
   const handleCalendarDisconnect = async () => {
     if (!confirm('Disconnect Google Calendar?')) return
     setCalWorking(true)
+    setError(null)
     try {
       await disconnectCalendar(session.access_token)
       setCalConnected(false)
       setCalEmail(null)
-    } catch {
+    } catch (err) {
+      console.error('Calendar disconnect failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not disconnect Google Calendar')
     } finally {
       setCalWorking(false)
     }
@@ -203,10 +211,13 @@ export default function SettingsPage({ session }: Props) {
 
   const handleOutlookConnect = async () => {
     setOutlookWorking(true)
+    setError(null)
     try {
       const { auth_url } = await getOutlookAuthUrl(session.access_token)
       window.location.href = auth_url
-    } catch {
+    } catch (err) {
+      console.error('Outlook connect failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not start Outlook connection')
       setOutlookWorking(false)
     }
   }
@@ -214,11 +225,14 @@ export default function SettingsPage({ session }: Props) {
   const handleOutlookDisconnect = async () => {
     if (!confirm('Disconnect Outlook Calendar?')) return
     setOutlookWorking(true)
+    setError(null)
     try {
       await disconnectOutlook(session.access_token)
       setOutlookConnected(false)
       setOutlookEmail(null)
-    } catch {
+    } catch (err) {
+      console.error('Outlook disconnect failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not disconnect Outlook')
     } finally {
       setOutlookWorking(false)
     }
@@ -226,13 +240,20 @@ export default function SettingsPage({ session }: Props) {
 
   const handleReminderToggle = async () => {
     if (!userProfile) return
+    const prevFreq = userProfile.reminder_frequency
     const newFrequency = userProfile.reminder_frequency === 'weekly' ? 'never' : 'weekly'
     setReminderSaving(true)
+    setError(null)
+    // Optimistic
+    setUserProfile(prev => prev ? { ...prev, reminder_frequency: newFrequency } : prev)
     try {
       const updated = await updateMe({ reminder_frequency: newFrequency }, session.access_token)
-      setUserProfile(prev => prev ? { ...prev, reminder_frequency: updated.reminder_frequency } : prev)
-    } catch {
-      // ignore
+      setUserProfile(prev => prev ? { ...prev, reminder_frequency: updated.reminder_frequency ?? newFrequency } : prev)
+    } catch (err) {
+      console.error('Reminder toggle failed:', err)
+      // Revert
+      setUserProfile(prev => prev ? { ...prev, reminder_frequency: prevFreq } : prev)
+      setError(err instanceof Error ? err.message : 'Could not update reminder preference')
     } finally {
       setReminderSaving(false)
     }
@@ -293,7 +314,7 @@ export default function SettingsPage({ session }: Props) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback for browsers that block clipboard
+      // intentionally silent: fallback to execCommand for browsers that block clipboard API
       const el = document.createElement('textarea')
       el.value = address
       document.body.appendChild(el)
@@ -329,8 +350,9 @@ export default function SettingsPage({ session }: Props) {
     try {
       await revokeAccountant(session.access_token, email)
       setAccountantList((prev) => prev.filter((a) => a.accountant_email !== email))
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Revoke accountant failed:', err)
+      setAccountantError(err instanceof Error ? err.message : 'Could not revoke access')
     }
   }
 
@@ -378,12 +400,16 @@ export default function SettingsPage({ session }: Props) {
   }
 
   const handleAutoSubmitChange = async (freq: string) => {
+    const prevFreq = autoSubmitFreq
     setAutoSubmitFreq(freq)
     setAutoSubmitSaving(true)
+    setError(null)
     try {
       await updateMe({ auto_submit_frequency: freq }, session.access_token)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Auto-submit frequency save failed:', err)
+      setAutoSubmitFreq(prevFreq)
+      setError(err instanceof Error ? err.message : 'Could not save auto-submit frequency')
     } finally {
       setAutoSubmitSaving(false)
     }
@@ -391,10 +417,12 @@ export default function SettingsPage({ session }: Props) {
 
   const handleAutoSubmitEmailSave = async () => {
     setAutoSubmitSaving(true)
+    setError(null)
     try {
       await updateMe({ auto_submit_email: autoSubmitEmail }, session.access_token)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Auto-submit email save failed:', err)
+      setError(err instanceof Error ? err.message : 'Could not save auto-submit email')
     } finally {
       setAutoSubmitSaving(false)
     }
@@ -438,8 +466,9 @@ export default function SettingsPage({ session }: Props) {
     try {
       await disconnectIntegration(session.access_token, platform)
       setIntegrationConnections((prev) => prev.filter((c) => c.platform !== platform))
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Integration disconnect failed:', err)
+      setError(err instanceof Error ? err.message : `Could not disconnect ${platform}`)
     } finally {
       setIntegrationsWorking(null)
     }

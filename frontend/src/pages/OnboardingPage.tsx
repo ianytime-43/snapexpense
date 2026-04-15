@@ -75,8 +75,9 @@ export default function OnboardingPage({ session }: Props) {
         { expense_workflow: workflow, onboarding_complete: true },
         session.access_token,
       )
-    } catch {
-      // non-fatal
+    } catch (err) {
+      // Non-fatal: user can fix in Settings. Log so we see repeated failures.
+      console.error('Onboarding: workflow save failed:', err)
     } finally {
       setSaving(false)
       setStep(2)
@@ -88,7 +89,9 @@ export default function OnboardingPage({ session }: Props) {
     try {
       const { auth_url } = await getCalendarAuthUrl(session.access_token)
       window.location.href = auth_url
-    } catch {
+    } catch (err) {
+      console.error('Onboarding: Google Calendar connect failed:', err)
+      alert(err instanceof Error ? err.message : 'Could not connect Google Calendar. You can connect later in Settings.')
       setCalWorking(false)
     }
   }
@@ -98,7 +101,9 @@ export default function OnboardingPage({ session }: Props) {
     try {
       const { auth_url } = await getOutlookAuthUrl(session.access_token)
       window.location.href = auth_url
-    } catch {
+    } catch (err) {
+      console.error('Onboarding: Outlook connect failed:', err)
+      alert(err instanceof Error ? err.message : 'Could not connect Outlook. You can connect later in Settings.')
       setOutlookWorking(false)
     }
   }
@@ -124,8 +129,10 @@ export default function OnboardingPage({ session }: Props) {
         },
         session.access_token,
       )
-    } catch {
-      // non-fatal
+    } catch (err) {
+      // Non-fatal: proceed to dashboard anyway, but log + alert so the user knows.
+      console.error('Onboarding: preferences save failed:', err)
+      alert('Your preferences could not be saved. Please adjust them in Settings.')
     } finally {
       setSaving(false)
       handleComplete()
